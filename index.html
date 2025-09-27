@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CollegeCrush</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💖</text></svg>">
+    <script>
+      // Stop FOUC by applying theme class before render
+      const theme = localStorage.theme;
+      const systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (theme === 'dark' || (theme !== 'light' && systemIsDark)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Configure Tailwind CSS for class-based dark mode and add zinc colors
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              zinc: {
+                50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8',
+                400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46',
+                800: '#27272a', 900: '#18181b', 950: '#09090b'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://rsms.me/inter/inter.css');
+      html { font-family: 'Inter', sans-serif; }
+      /* Custom scrollbar for better aesthetics */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      .dark ::-webkit-scrollbar-track {
+        background: #09090b;
+      }
+      .light ::-webkit-scrollbar-track {
+        background: #f3f4f6;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background-color: #3f3f46;
+        border-radius: 4px;
+      }
+      .light ::-webkit-scrollbar-thumb {
+        background-color: #9ca3af;
+        border-radius: 4px;
+      }
+       .dark ::-webkit-scrollbar-thumb:hover {
+        background-color: #52525b;
+      }
+       .light ::-webkit-scrollbar-thumb:hover {
+        background-color: #6b7280;
+      }
+      
+      /* Aurora Background Effect */
+      .aurora-bg {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        z-index: -10;
+      }
+      .aurora-bg::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 140vmax;
+        height: 140vmax;
+        background-image:
+            radial-gradient(ellipse at center, rgba(236, 72, 153, 0.5) 0%, transparent 40%),
+            radial-gradient(ellipse at center, rgba(139, 92, 246, 0.5) 0%, transparent 40%);
+        background-blend-mode: multiply;
+        animation: rotate 40s linear infinite;
+        opacity: 0.8;
+        transform-origin: center;
+      }
+
+      @keyframes rotate {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+      }
+
+      /* Chat Bubble Tails Removed for Modern UI */
+      
+      ::selection {
+        background: rgba(236, 72, 153, 0.4);
+        color: #fff;
+      }
+      
+      @keyframes background-pan {
+        from { background-position: 0% center; }
+        to { background-position: -200% center; }
+      }
+      .animated-gradient-text {
+        background-size: 200%;
+        animation: background-pan 3s linear infinite;
+      }
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      .animate-shimmer {
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      .animate-pulse-subtle {
+        animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+      }
+      /* Added for accessibility */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.53.0",
+    "framer-motion": "https://esm.sh/framer-motion@11.3.19",
+    "lucide-react": "https://esm.sh/lucide-react@0.418.0",
+    "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1",
+    "@google/genai": "https://esm.sh/@google/genai@1.13.0",
+    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "react/": "https://esm.sh/react@18.2.0/"
+  }
+}
+</script>
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+</head>
+  <body class="bg-zinc-100 dark:bg-zinc-950 antialiased text-zinc-800 dark:text-white transition-colors duration-300">
+    <div class="aurora-bg"></div>
+    <div id="root"></div>
+    <script type="module" src="./src/index.tsx"></script>
+</body>
+</html>
