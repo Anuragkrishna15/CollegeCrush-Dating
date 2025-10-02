@@ -16,9 +16,13 @@ interface ProfileCardProps {
 
 const ProfileCard = React.memo(function ProfileCard({ profile, onClick }: ProfileCardProps) {
   return (
-    <MotionDiv 
+    <MotionDiv
         className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-transparent cursor-pointer group p-px"
         onClick={onClick}
+        role="button"
+        aria-label={`View profile of ${profile.name}, ${profile.age} years old from ${profile.college}`}
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
     >
        <div className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${PREMIUM_GRADIENT} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
        <div className="relative w-full h-full bg-black/40 rounded-[23px] overflow-hidden">

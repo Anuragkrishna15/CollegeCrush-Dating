@@ -9,7 +9,7 @@ import MatchPopup from '../MatchPopup.tsx';
 import { useUser } from '../../hooks/useUser.ts';
 import EmptyState from '../common/EmptyState.tsx';
 import { useNotification } from '../../hooks/useNotification.ts';
-import { X, Heart, Users, AlertTriangle, RefreshCw } from 'lucide-react';
+import { X, Heart, Users, AlertTriangle, RefreshCw, Filter } from 'lucide-react';
 import ProfileCardSkeleton from '../skeletons/ProfileCardSkeleton.tsx';
 
 // Fix for framer-motion type errors
@@ -80,6 +80,7 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
     const { showNotification } = useNotification();
     const [swipeDirection, setSwipeDirection] = React.useState<'left' | 'right' | null>(null);
     const [isSwiping, setIsSwiping] = React.useState(false);
+    const [minAge, setMinAge] = React.useState(18);
 
     // For drag gestures
     const x = useMotionValue(0);
@@ -89,13 +90,14 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
 
 
     const swipeDeck = React.useMemo((): Swipeable[] => {
-        if (!user || user.membership !== MembershipType.Free || ads.length === 0 || profiles.length === 0) {
-            return profiles;
+        const filteredProfiles = profiles.filter(profile => profile.age >= minAge);
+        if (!user || user.membership !== MembershipType.Free || ads.length === 0 || filteredProfiles.length === 0) {
+            return filteredProfiles;
         }
         const interleaved: Swipeable[] = [];
         let adIndex = 0;
-        for (let i = 0; i < profiles.length; i++) {
-            interleaved.push(profiles[i]);
+        for (let i = 0; i < filteredProfiles.length; i++) {
+            interleaved.push(filteredProfiles[i]);
             // After every AD_FREQUENCY profiles, show an ad
             if ((i + 1) % AD_FREQUENCY === 0) {
                 interleaved.push(ads[adIndex % ads.length]);
@@ -103,7 +105,7 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
             }
         }
         return interleaved;
-    }, [profiles, ads, user]);
+    }, [profiles, ads, user, minAge]);
 
     const loadData = React.useCallback(() => {
         if (user) {
@@ -207,6 +209,23 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
     const currentItem = !loading && !error && swipeDeck.length > 0 && currentIndex < swipeDeck.length ? swipeDeck[currentIndex] : null;
     const isCurrentItemAd = currentItem && 'link' in currentItem;
     const swipesLeft = user?.membership === MembershipType.Free ? SWIPE_LIMIT - swipesToday : Infinity;
+
+    // Keyboard navigation for swiping
+    React.useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (isSwiping || !currentItem || isCurrentItemAd) return;
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                handleSwipe('left');
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                handleSwipe('right');
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleSwipe, isSwiping, currentItem, isCurrentItemAd]);
 
     const cardVariants = {
         initial: { scale: 0.95, y: -25, opacity: 0.8 },
@@ -322,11 +341,17 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
             </div>
             
             <div className="flex flex-col items-center justify-center w-full pt-4 h-36">
-                {user?.membership === MembershipType.Free && currentItem && !isCurrentItemAd && (
-                    <div className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
-                        Swipes left today: <span className="font-bold text-black dark:text-white">{swipesLeft > 0 ? swipesLeft : 0}</span>
-                    </div>
-                )}
+                <div className="flex items-center justify-between w-full max-w-md mb-4">
+                    {user?.membership === MembershipType.Free && currentItem && !isCurrentItemAd && (
+                        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                            Swipes left today: <span className="font-bold text-black dark:text-white">{swipesLeft > 0 ? swipesLeft : 0}</span>
+                        </div>
+                    )}
+                    <button onClick={() => setMinAge(minAge === 18 ? 21 : 18)} className="flex items-center gap-1 px-3 py-1 bg-zinc-800 rounded-lg text-sm hover:bg-zinc-700 transition-colors">
+                        <Filter size={14} />
+                        Age {minAge}+
+                    </button>
+                </div>
 
                 {currentItem && !isCurrentItemAd && (
                     <div className="flex items-center justify-center space-x-6 md:space-x-8 w-full">

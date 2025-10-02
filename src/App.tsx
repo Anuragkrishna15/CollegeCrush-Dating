@@ -11,6 +11,7 @@ import VibeCheckModal from './components/modals/VibeCheckModal.tsx';
 import OnboardingScreen from './components/screens/OnboardingScreen.tsx';
 import AuthGate from './components/screens/AuthGate.tsx';
 import TopBar from './components/common/TopBar.tsx';
+import ScrollToTopButton from './components/common/ScrollToTopButton.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 
 import { Screen, Profile, BlindDate, User, AppNotification, Conversation } from './types/types.ts';
@@ -302,6 +303,7 @@ const App: React.FC = () => {
                 </AnimatePresence>
              </div>
           </main>
+          <ScrollToTopButton />
         </div>
     );
   }

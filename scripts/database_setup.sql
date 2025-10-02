@@ -526,11 +526,7 @@ LANGUAGE sql AS $$
     SELECT p.*
     FROM public.profiles p
     WHERE p.id <> p_user_id
-        AND (
-            p_user_gender = 'Other'
-            OR p.gender = CASE WHEN p_user_gender = 'Male' THEN 'Female' WHEN p_user_gender = 'Female' THEN 'Male' END::public.gender_enum
-            OR p.gender = 'Other'
-        )
+        AND p.gender = CASE WHEN p_user_gender = 'Male' THEN 'Female' WHEN p_user_gender = 'Female' THEN 'Male' WHEN p_user_gender = 'Other' THEN p.gender END::public.gender_enum
         AND (p.privacy_settings->>'showInSwipe')::boolean IS DISTINCT FROM false
         AND NOT EXISTS (SELECT 1 FROM public.swipes s WHERE s.swiper_id = p_user_id AND s.swiped_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM public.reports_blocks rb WHERE rb.reporting_user_id = p_user_id AND rb.reported_user_id = p.id AND rb.type = 'block')
