@@ -464,7 +464,7 @@ export const fetchNearbyProposals = async (userId: string): Promise<BlindDatePro
         console.error("Error fetching nearby proposals:", error);
         throw error;
     }
-    
+
     return (data || []).map((p: NearbyProposalRpcResponse): BlindDateProposal => ({
         id: p.id,
         cafe: p.cafe,

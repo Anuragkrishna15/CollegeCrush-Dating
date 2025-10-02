@@ -25,7 +25,7 @@ interface ChatDetailScreenProps {
   onProfileClick: (profile: Profile) => void;
 }
 
-type UIMessage = Message & { status?: 'sending' };
+type UIMessage = Message & { status?: 'sending' | 'queued' };
 
 interface MessageBubbleProps {
     message: UIMessage;

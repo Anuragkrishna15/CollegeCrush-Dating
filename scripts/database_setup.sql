@@ -322,16 +322,17 @@ AS $$
 DECLARE
     v_user_lat numeric;
     v_user_lon numeric;
+    v_user_gender public.gender_enum;
 BEGIN
-    SELECT latitude, longitude INTO v_user_lat, v_user_lon FROM public.profiles WHERE id = p_user_id;
+    SELECT latitude, longitude, gender INTO v_user_lat, v_user_lon, v_user_gender FROM public.profiles WHERE id = p_user_id;
     IF v_user_lat IS NULL OR v_user_lon IS NULL THEN RETURN; END IF;
 
     RETURN QUERY
     SELECT
-        bd.id,
-        bd.cafe,
-        bd.meal::public.meal_type,
-        bd.date_time,
+        bd.id as id,
+        bd.cafe as cafe,
+        bd.meal::public.meal_type as meal,
+        bd.date_time as date_time,
         proposer.id as proposer_id,
         proposer.name as proposer_name,
         proposer."profilePics" as proposer_profile_pics,
@@ -347,6 +348,11 @@ BEGIN
       AND bd.requesting_user_id != p_user_id
       AND bd.date_time > now()
       AND proposer.latitude IS NOT NULL AND proposer.longitude IS NOT NULL
+      AND (
+          v_user_gender = 'Other'
+          OR proposer.gender = CASE WHEN v_user_gender = 'Male' THEN 'Female' WHEN v_user_gender = 'Female' THEN 'Male' END::public.gender_enum
+          OR proposer.gender = 'Other'
+      )
       AND NOT EXISTS (SELECT 1 FROM public.reports_blocks rb WHERE (rb.reporting_user_id = p_user_id AND rb.reported_user_id = proposer.id) OR (rb.reporting_user_id = proposer.id AND rb.reported_user_id = p_user_id))
       AND ST_DWithin(
           ST_MakePoint(proposer.longitude, proposer.latitude)::geography,
@@ -520,7 +526,11 @@ LANGUAGE sql AS $$
     SELECT p.*
     FROM public.profiles p
     WHERE p.id <> p_user_id
-        AND p.gender = (CASE WHEN p_user_gender = 'Male' THEN 'Female'::public.gender_enum ELSE 'Male'::public.gender_enum END)
+        AND (
+            p_user_gender = 'Other'
+            OR p.gender = CASE WHEN p_user_gender = 'Male' THEN 'Female' WHEN p_user_gender = 'Female' THEN 'Male' END::public.gender_enum
+            OR p.gender = 'Other'
+        )
         AND (p.privacy_settings->>'showInSwipe')::boolean IS DISTINCT FROM false
         AND NOT EXISTS (SELECT 1 FROM public.swipes s WHERE s.swiper_id = p_user_id AND s.swiped_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM public.reports_blocks rb WHERE rb.reporting_user_id = p_user_id AND rb.reported_user_id = p.id AND rb.type = 'block')
