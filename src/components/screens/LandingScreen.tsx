@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import { Heart, CalendarPlus, Briefcase, GraduationCap, Users, ShieldCheck, Mail, UserPlus, Coffee, Star as StarIcon } from 'lucide-react';
 import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
 import { useNotification } from '../../hooks/useNotification.ts';
@@ -96,7 +97,58 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
     );
 
   return (
-    <div className="bg-black text-white font-sans overflow-x-hidden">
+    <>
+      <Helmet>
+        <script type="application/ld+json">
+        {JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is CollegeCrush?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "CollegeCrush is India's premier dating app exclusively for college students. It helps students find meaningful connections, friends, and romantic partners within the verified college community."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is CollegeCrush free to use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, CollegeCrush is free to download and use. We offer premium features for enhanced experiences, but the core functionality is completely free."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do blind dates work on CollegeCrush?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Our blind date feature matches you with compatible students and suggests nearby cafes for your first meeting. It's designed to reduce pressure and encourage real conversations."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is my data safe on CollegeCrush?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Absolutely. We prioritize your safety and privacy. All users are verified college students, and we use industry-standard security measures to protect your information."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I find friends on CollegeCrush?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes! CollegeCrush is not just for dating. You can find study partners, event buddies, and build your college social circle through our platform."
+              }
+            }
+          ]
+        })}
+        </script>
+      </Helmet>
+      <div className="bg-black text-white font-sans overflow-x-hidden">
       {/* Header */}
       <MotionHeader 
         initial={{ y: -100 }} animate={{ y: 0 }}
@@ -333,6 +385,7 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
         </div>
       </footer>
     </div>
+    </>
   );
 }
 
