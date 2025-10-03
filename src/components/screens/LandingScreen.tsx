@@ -47,7 +47,7 @@ const collegesPunjab = [
 const team = [
   { name: "Anurag", role: "Team Leader & Frontend Developer", image: "/images/team/anurag.jpg" },
   { name: "Abhay", role: "Backend (DB & Auth)", image: "/images/team/abhay.jpg" },
-  { name: "Shaurya", role: "Backend (API & Logic)", image: "/images/team/shaurya.jpg" },
+  { name: "Shaurya", role: "Backend (API & Logic)", image: "/images/team/Shaurya.jpg" },
   { name: "Gauransh", role: "Frontend (UI & Responsiveness)", image: "/images/team/gauransh.jpg" },
 ];
 
@@ -163,7 +163,7 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
         className="fixed top-0 left-0 right-0 z-50 p-4 bg-black/50 backdrop-blur-lg border-b border-zinc-800/50">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">
-            <img src="/logo.png" alt="CollegeCrush" className="h-8" />
+            <img src="/images/logo.png" alt="CollegeCrush" className="h-8" />
           </h1>
           <button onClick={onGetStarted} className="bg-white text-black font-semibold px-4 py-2 rounded-lg text-sm hover:bg-neutral-200 transition-colors">
             Launch App
