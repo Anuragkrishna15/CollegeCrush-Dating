@@ -36,6 +36,14 @@ const testimonials = [
     { name: "Rohan K.", college: "IIIT Delhi", quote: "The blind date feature is genius! It's way less pressure and you actually get to know the person. Met some really cool people through it.", image: "https://images.unsplash.com/photo-1564564321837-a57b7070ac4f?q=80&w=876&auto=format&fit=crop" },
 ];
 
+const collegesDelhi = [
+    "VIT Delhi", "IIIT Delhi", "Amity University", "JIMS", "MAIT", "GTBIT", "BPIT", "TIPS", "Jamia", "Hamdard", "MRU", "BMU", "O.P. Jindal Global University", "Apeejay Stya University", "SRM University", "DPGITM", "Starex University", "WCTM", "Geeta University", "Sharda University", "Galgotias University", "Bennett University", "GLBITM", "KIET", "IMS Ghaziabad", "IIMT", "ABES", "NIU"
+];
+
+const collegesPunjab = [
+    "LPU", "Chitkara University", "DAV University", "CT Group", "RIMT University", "ACET", "GKU", "Desh Bhagat University", "Quest University"
+];
+
 const team = [
   { name: "Anurag", role: "Team Leader & Frontend Developer", image: "https://placehold.co/96x96/ec4899/ffffff/png?text=A" },
   { name: "Abhay", role: "Backend (DB & Auth)", image: "https://placehold.co/96x96/8b5cf6/ffffff/png?text=A" },
@@ -299,7 +307,43 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
         </div>
       </section>
 
-       {/* Testimonials Section */}
+      {/* Colleges Section */}
+      <section id="colleges" className="py-20 px-4">
+        <div className="container mx-auto">
+          <h2 className="text-4xl font-bold text-center">Our College Community</h2>
+          <p className="text-neutral-400 text-center mt-4 max-w-xl mx-auto">Students from these amazing institutions are already connecting on CollegeCrush.</p>
+          <MotionDiv
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            className="mt-12"
+          >
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold mb-6 text-center">🎓 Delhi NCR & Nearby</h3>
+              <div className="flex flex-wrap justify-center gap-3">
+                {collegesDelhi.map((college) => (
+                  <MotionDiv key={college} variants={itemVariants} className="bg-neutral-800 px-4 py-2 rounded-full text-sm font-medium hover:bg-pink-500/20 transition-colors">
+                    {college}
+                  </MotionDiv>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold mb-6 text-center">🎓 Punjab & Haryana</h3>
+              <div className="flex flex-wrap justify-center gap-3">
+                {collegesPunjab.map((college) => (
+                  <MotionDiv key={college} variants={itemVariants} className="bg-neutral-800 px-4 py-2 rounded-full text-sm font-medium hover:bg-pink-500/20 transition-colors">
+                    {college}
+                  </MotionDiv>
+                ))}
+              </div>
+            </div>
+          </MotionDiv>
+        </div>
+      </section>
+
+        {/* Testimonials Section */}
        <section id="testimonials" className="py-20 px-4">
             <div className="container mx-auto text-center">
                 <h2 className="text-4xl font-bold">Don't Just Take Our Word For It</h2>
