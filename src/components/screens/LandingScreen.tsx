@@ -45,10 +45,10 @@ const collegesPunjab = [
 ];
 
 const team = [
-  { name: "Anurag", role: "Team Leader & Frontend Developer", image: "https://placehold.co/96x96/ec4899/ffffff/png?text=A" },
-  { name: "Abhay", role: "Backend (DB & Auth)", image: "https://placehold.co/96x96/8b5cf6/ffffff/png?text=A" },
-  { name: "Shaurya", role: "Backend (API & Logic)", image: "https://placehold.co/96x96/3b82f6/ffffff/png?text=S" },
-  { name: "Gauransh", role: "Frontend (UI & Responsiveness)", image: "https://placehold.co/96x96/14b8a6/ffffff/png?text=G" },
+  { name: "Anurag", role: "Team Leader & Frontend Developer", image: "/images/team/anurag.jpg" },
+  { name: "Abhay", role: "Backend (DB & Auth)", image: "/images/team/abhay.jpg" },
+  { name: "Shaurya", role: "Backend (API & Logic)", image: "/images/team/shaurya.jpg" },
+  { name: "Gauransh", role: "Frontend (UI & Responsiveness)", image: "/images/team/gauransh.jpg" },
 ];
 
 const AuroraBackground = () => <div className="aurora-bg"></div>;
@@ -163,7 +163,7 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
         className="fixed top-0 left-0 right-0 z-50 p-4 bg-black/50 backdrop-blur-lg border-b border-zinc-800/50">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-500">College</span><span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-violet-400">Crush</span>
+            <img src="/logo.png" alt="CollegeCrush" className="h-8" />
           </h1>
           <button onClick={onGetStarted} className="bg-white text-black font-semibold px-4 py-2 rounded-lg text-sm hover:bg-neutral-200 transition-colors">
             Launch App
