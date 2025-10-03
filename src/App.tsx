@@ -1,5 +1,6 @@
 
 import * as React from 'react';
+import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -155,6 +156,22 @@ const App: React.FC = () => {
   
   const contextValue = React.useMemo(() => ({ user, loading, logout, refetchUser, boostEndTime }), [user, loading, logout, refetchUser, boostEndTime]);
 
+  const getPageTitle = (screen: Screen) => {
+    switch (screen) {
+      case Screen.Swipe: return 'Swipe - CollegeCrush';
+      case Screen.Likes: return 'Likes - CollegeCrush';
+      case Screen.Dates: return 'Dates - CollegeCrush';
+      case Screen.Chat: return 'Chat - CollegeCrush';
+      case Screen.Trips: return 'Trips - CollegeCrush';
+      case Screen.Events: return 'Events - CollegeCrush';
+      case Screen.Profile: return 'Profile - CollegeCrush';
+      case Screen.Settings: return 'Settings - CollegeCrush';
+      case Screen.EditProfile: return 'Edit Profile - CollegeCrush';
+      case Screen.Notifications: return 'Notifications - CollegeCrush';
+      default: return 'CollegeCrush - Exclusive Dating for College Students';
+    }
+  };
+
   const handleGoToChat = (conversation?: Conversation) => {
     setActiveConversation(conversation || null);
     setActiveScreen(Screen.Chat);
@@ -282,9 +299,13 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="md:flex h-screen w-full bg-transparent font-sans">
-          <BottomNav activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
-          <main className="flex-1 h-full flex flex-col bg-zinc-950 md:bg-zinc-950/50 md:backdrop-blur-lg md:rounded-l-3xl md:border-l md:border-zinc-800 relative">
+        <>
+          <Helmet>
+            <title>{getPageTitle(activeScreen)}</title>
+          </Helmet>
+          <div className="md:flex h-screen w-full bg-transparent font-sans">
+            <BottomNav activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
+            <main className="flex-1 h-full flex flex-col bg-zinc-950 md:bg-zinc-950/50 md:backdrop-blur-lg md:rounded-l-3xl md:border-l md:border-zinc-800 relative">
              <TopBar activeScreen={activeScreen} setActiveScreen={setActiveScreen} unreadCount={unreadCount} />
              <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
                 <AnimatePresence mode="wait">
@@ -302,17 +323,19 @@ const App: React.FC = () => {
                     </MotionDiv>
                 </AnimatePresence>
              </div>
-          </main>
-          <ScrollToTopButton />
-        </div>
-    );
+           </main>
+           <ScrollToTopButton />
+         </div>
+       </>
+   );
   }
 
   return (
-    <ThemeProvider>
-      <UserContext.Provider value={contextValue}>
-      <PresenceProvider>
-      <NotificationContext.Provider value={notificationContextValue}>
+    <HelmetProvider>
+      <ThemeProvider>
+        <UserContext.Provider value={contextValue}>
+        <PresenceProvider>
+        <NotificationContext.Provider value={notificationContextValue}>
         <Toaster 
           position="top-center"
           toastOptions={{
@@ -335,10 +358,11 @@ const App: React.FC = () => {
             <AppContent />
         </ErrorBoundary>
 
-      </NotificationContext.Provider>
-      </PresenceProvider>
-      </UserContext.Provider>
-    </ThemeProvider>
+        </NotificationContext.Provider>
+        </PresenceProvider>
+        </UserContext.Provider>
+      </ThemeProvider>
+    </HelmetProvider>
   );
 };
 
