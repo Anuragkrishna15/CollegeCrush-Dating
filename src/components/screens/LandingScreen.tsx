@@ -41,7 +41,7 @@ const collegesDelhi = [
 ];
 
 const collegesPunjab = [
-    "LPU", "Chitkara University", "DAV University", "CT Group", "RIMT University", "ACET", "GKU", "Desh Bhagat University", "Quest University"
+    "LPU", "Chitkara University", "DAV University", "CT Group", "RIMT University", "ACET", "GKU", "Desh Bhagat University", "Quest University", "Chandigarh University"
 ];
 
 const team = [
@@ -164,7 +164,7 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
         className="fixed top-0 left-0 right-0 z-50 p-4 bg-black/50 backdrop-blur-lg border-b border-zinc-800/50">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">
-            <img src="/images/logo.png" alt="CollegeCrush" className="h-12 rounded-full" />
+            <img src="/images/logo.png" alt="CollegeCrush" className="h-16 rounded-full" />
           </h1>
           <button onClick={onGetStarted} className="bg-white text-black font-semibold px-4 py-2 rounded-lg text-sm hover:bg-neutral-200 transition-colors">
             Launch App
@@ -425,6 +425,7 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
       {/* Footer */}
       <footer className="py-10 px-4 border-t border-neutral-800/50">
         <div className="container mx-auto text-center text-neutral-500">
+            <img src="/images/logo.png" alt="CollegeCrush" className="h-12 mx-auto mb-4 rounded-full" />
             <p>&copy; {new Date().getFullYear()} CollegeCrush. All Rights Reserved.</p>
             <p className="text-sm mt-2">Made with <Heart size={14} className="inline text-pink-500" /> by students, for students.</p>
         </div>
