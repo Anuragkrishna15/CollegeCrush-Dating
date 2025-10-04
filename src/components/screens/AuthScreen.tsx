@@ -21,7 +21,7 @@ const ALLOWED_DOMAINS = [
     'starexuniversity.com', 'wctm.in', 'geetauniversity.edu.in', 
     'sharda.ac.in', 'galgotiasuniversity.edu.in', 'bennett.edu.in', 
     'glbitm.ac.in', 'kiet.edu', 'ims-ghaziabad.ac.in', 'iimtindia.net', 
-    'abes.ac.in', 'niu.edu.in'
+    'abes.ac.in', 'niu.edu.in', 'chitkarauniversity.edu.in',
 ];
 
 const AuthScreen: React.FC = () => {
