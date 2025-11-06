@@ -8,6 +8,20 @@ export default defineConfig(({ mode }) => {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Separate vendor chunks for better caching
+              'react-vendor': ['react', 'react-dom', 'react-helmet-async', 'react-hot-toast'],
+              'supabase-vendor': ['@supabase/supabase-js'],
+              'ui-vendor': ['framer-motion', 'lucide-react']
+            }
+          }
+        },
+        // Increase chunk size warning limit since we're optimizing
+        chunkSizeWarningLimit: 600
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, './src'),

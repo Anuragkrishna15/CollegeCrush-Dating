@@ -5,6 +5,7 @@ export enum Screen {
   Likes = 'Likes',
   Dates = 'Dates',
   Chat = 'Chat',
+  Community = 'Community',
   Trips = 'Trips',
   Events = 'Events',
   Profile = 'Profile',
@@ -94,6 +95,12 @@ export interface ProfileOnboardingData {
 export interface VibeCheck {
     rating: 'good' | 'bad' | null;
     tags: string[];
+    stars?: number; // 1-5 star rating
+    punctuality?: number; // 1-5
+    conversation?: number; // 1-5
+    respect?: number; // 1-5
+    chemistry?: number; // 1-5
+    comments?: string;
 }
 
 export interface BlindDate {
@@ -159,3 +166,77 @@ export type AppNotification = {
 };
 
 export type Swipeable = Profile | Ad;
+
+// Community types
+export interface CommunityPost {
+  id: string;
+  title: string;
+  content: string;
+  category: CommunityCategory;
+  author: BasicProfile | null; // null for anonymous posts
+  isAnonymous: boolean;
+  upvotes: number;
+  downvotes: number;
+  commentCount: number;
+  created_at: string;
+  userVote?: 'up' | 'down' | null;
+}
+
+export interface CommunityComment {
+  id: string;
+  postId: string;
+  content: string;
+  author: BasicProfile | null;
+  isAnonymous: boolean;
+  upvotes: number;
+  downvotes: number;
+  created_at: string;
+  userVote?: 'up' | 'down' | null;
+  replies?: CommunityComment[];
+}
+
+export type CommunityCategory =
+  | 'Campus Life'
+  | 'Study Tips'
+  | 'Dating Advice'
+  | 'General Chat'
+  | 'Memes'
+  | 'Lost & Found'
+  | 'Events'
+  | 'Study Groups';
+
+// Gamification types
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlockedAt?: string;
+  progress?: number;
+  maxProgress?: number;
+}
+
+export interface DailyChallenge {
+  id: string;
+  title: string;
+  description: string;
+  type: 'messages' | 'swipes' | 'likes' | 'profile_views' | 'community_posts';
+  target: number;
+  progress: number;
+  reward: number; // points
+  completed: boolean;
+  expiresAt: string;
+}
+
+export interface UserStats {
+  totalSwipes: number;
+  totalMatches: number;
+  totalMessages: number;
+  totalDates: number;
+  currentStreak: number;
+  longestStreak: number;
+  points: number;
+  level: number;
+  achievements: Achievement[];
+  dailyChallenges: DailyChallenge[];
+}

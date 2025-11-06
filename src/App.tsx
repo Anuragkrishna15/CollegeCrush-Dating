@@ -29,6 +29,7 @@ const { lazy, Suspense } = React;
 // Lazy load screens for better performance
 const DatesScreen = lazy(() => import('./components/screens/DatesScreen.tsx'));
 const ChatScreen = lazy(() => import('./components/screens/ChatScreen.tsx'));
+const CommunityScreen = lazy(() => import('./components/screens/CommunityScreen.tsx'));
 const TripsScreen = lazy(() => import('./components/screens/TripsScreen.tsx'));
 const EventsScreen = lazy(() => import('./components/screens/EventsScreen.tsx'));
 const ProfileScreen = lazy(() => import('./components/screens/ProfileScreen.tsx'));
@@ -162,6 +163,7 @@ const App: React.FC = () => {
       case Screen.Likes: return 'Likes - CollegeCrush';
       case Screen.Dates: return 'Dates - CollegeCrush';
       case Screen.Chat: return 'Chat - CollegeCrush';
+      case Screen.Community: return 'Community - CollegeCrush';
       case Screen.Trips: return 'Trips - CollegeCrush';
       case Screen.Events: return 'Events - CollegeCrush';
       case Screen.Profile: return 'Profile - CollegeCrush';
@@ -244,11 +246,13 @@ const App: React.FC = () => {
       case Screen.Dates:
         return <DatesScreen onBookDate={() => setIsBookingDate(true)} onVibeCheck={setVibeCheckDate} setActiveScreen={setActiveScreen} />;
       case Screen.Chat:
-        return <ChatScreen 
-                    onProfileClick={setSelectedProfile} 
+        return <ChatScreen
+                    onProfileClick={setSelectedProfile}
                     activeConversation={activeConversation}
                     setActiveConversation={setActiveConversation}
                 />;
+      case Screen.Community:
+        return <CommunityScreen />;
       case Screen.Trips:
         return <TripsScreen />;
       case Screen.Events:

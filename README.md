@@ -93,8 +93,10 @@
    ```
 
 4. **Database Setup**
-   - Run the SQL script in `scripts/database_setup.sql` in your Supabase SQL editor
-   - Configure storage buckets as described in `docs/storage_setup.html`
+    - Run the SQL script in `scripts/database_setup.sql` in your Supabase SQL editor
+    - For development data, run `scripts/seeds/development-seed.sql`
+    - Configure storage buckets as described in `docs/storage_setup.html`
+    - See `docs/database-functions.md` for detailed database documentation
 
 5. **Start Development Server**
    ```bash
@@ -119,14 +121,26 @@ CollegeCrush/
 │   │   ├── chat/             # Chat-specific components
 │   │   └── skeletons/        # Loading skeletons
 │   ├── services/             # API and external services
+│   │   ├── database.types.ts # Comprehensive Supabase types
+│   │   ├── supabase.ts       # Supabase client configuration
+│   │   └── api.ts           # API service layer
 │   ├── hooks/                # Custom React hooks
-│   ├── types/                # TypeScript definitions
+│   ├── types/                # Additional TypeScript definitions
 │   ├── utils/                # Utility functions
 │   ├── constants/            # App constants
 │   └── App.tsx               # Main app component
 ├── docs/                     # Documentation
-├── scripts/                  # Database scripts
-└── public/                   # Static assets
+│   └── database-functions.md # Database functions documentation
+├── scripts/                  # Database and setup scripts
+│   ├── database_setup.sql    # Complete database schema
+│   └── seeds/                # Development seed data
+│       └── development-seed.sql
+├── tests/                    # Test files and configuration
+│   └── setup.ts             # Test setup and utilities
+├── config/                   # Configuration files
+├── public/                   # Static assets
+├── .env.example             # Environment variables template
+└── README.md                # This file
 ```
 
 ## 🎯 Key Components

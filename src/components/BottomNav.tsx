@@ -7,6 +7,7 @@ import { NAV_ITEMS } from '../constants/constants.ts';
 
 // Fix for framer-motion type errors
 const MotionButton: any = motion.button;
+const MotionDiv: any = motion.div;
 
 interface BottomNavProps {
   activeScreen: Screen;
@@ -24,14 +25,29 @@ function NavItem({ item, isActive, onClick }: NavItemProps) {
     return (
       <MotionButton
         onClick={onClick}
-        className={`flex flex-col md:flex-row items-center justify-center md:justify-start w-full md:w-auto md:px-4 md:py-3 transition-colors duration-300 ease-in-out group relative rounded-lg ${isActive ? 'md:bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'}`}
+        className={`flex flex-col md:flex-row items-center justify-center md:justify-start w-full md:w-auto md:px-4 md:py-3 transition-all duration-300 ease-in-out group relative rounded-lg ${isActive ? 'md:bg-zinc-800 text-white md:shadow-lg md:shadow-pink-500/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50 hover:scale-105'}`}
+        whileHover={{ scale: 1.05, y: -2 }}
+        whileTap={{ scale: 0.95 }}
+        transition={{ type: "spring", stiffness: 400, damping: 17 }}
       >
-        <div className={`relative transition-colors duration-300 ${isActive ? 'text-pink-400 [text-shadow:_0_0_10px_theme(colors.pink.400)]' : 'text-zinc-400 group-hover:text-white'}`}>
+        <MotionDiv
+            className={`relative transition-all duration-300 ${isActive ? 'text-pink-400 [text-shadow:_0_0_10px_theme(colors.pink.400)]' : 'text-zinc-400 group-hover:text-white'}`}
+            animate={isActive ? { rotate: [0, -10, 10, 0] } : {}}
+            transition={{ duration: 0.5 }}
+        >
             <IconComponent className="w-7 h-7" />
-        </div>
+        </MotionDiv>
         <span className={`text-xs md:text-base mt-1 md:mt-0 md:ml-4 font-medium transition-colors duration-300 ${isActive ? 'text-white' : 'text-zinc-400 group-hover:text-white'}`}>
           {item.label}
         </span>
+        {isActive && (
+            <MotionDiv
+                className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-pink-400 rounded-full md:hidden"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 500 }}
+            />
+        )}
       </MotionButton>
     );
 }

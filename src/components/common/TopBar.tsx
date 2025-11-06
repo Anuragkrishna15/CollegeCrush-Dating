@@ -1,8 +1,9 @@
 
 import * as React from 'react';
 import { Screen } from '../../types/types.ts';
-import { Bell, ArrowLeft } from 'lucide-react';
+import { Bell, ArrowLeft, Sun, Moon, Monitor } from 'lucide-react';
 import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
+import { useTheme } from '../../hooks/useTheme.ts';
 
 interface TopBarProps {
     activeScreen: Screen;
@@ -25,11 +26,21 @@ const screenConfig: Record<string, { title: string; showBackTo?: Screen }> = {
 
 const TopBar: React.FC<TopBarProps> = ({ activeScreen, unreadCount, setActiveScreen }) => {
     const config = screenConfig[activeScreen];
+    const { theme, toggleTheme } = useTheme();
     if (!config) return null;
 
     const handleBack = () => {
         if (config.showBackTo) {
             setActiveScreen(config.showBackTo);
+        }
+    };
+
+    const getThemeIcon = () => {
+        switch (theme) {
+            case 'light': return <Sun size={20} />;
+            case 'dark': return <Moon size={20} />;
+            case 'system': return <Monitor size={20} />;
+            default: return <Monitor size={20} />;
         }
     };
 
@@ -49,6 +60,13 @@ const TopBar: React.FC<TopBarProps> = ({ activeScreen, unreadCount, setActiveScr
             </div>
 
             <div className="flex items-center gap-2">
+                <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-full hover:bg-zinc-800 transition-colors"
+                    aria-label={`Current theme: ${theme}. Click to toggle theme.`}
+                >
+                    {getThemeIcon()}
+                </button>
                 <button
                     onClick={() => setActiveScreen(Screen.Notifications)}
                     className="relative p-2 rounded-full hover:bg-zinc-800 transition-colors"

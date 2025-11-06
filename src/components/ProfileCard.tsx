@@ -23,17 +23,24 @@ const ProfileCard = React.memo(function ProfileCard({ profile, onClick }: Profil
         aria-label={`View profile of ${profile.name}, ${profile.age} years old from ${profile.college}`}
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+        whileHover={{ scale: 1.02, y: -5 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
-       <div className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${PREMIUM_GRADIENT} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
-       <div className="relative w-full h-full bg-black/40 rounded-[23px] overflow-hidden">
-        {profile.profilePics.length > 1 && (
+        <MotionDiv
+            className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${PREMIUM_GRADIENT} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
+            initial={{ opacity: 0 }}
+            whileHover={{ opacity: 1 }}
+        ></MotionDiv>
+        <div className="relative w-full h-full bg-black/40 rounded-[23px] overflow-hidden backdrop-blur-sm">
+        {profile.profile_pics.length > 1 && (
             <div className="absolute top-3 inset-x-3 z-10 h-1 flex items-center gap-1.5">
-                {profile.profilePics.map((pic, i) => (
+                {profile.profile_pics.map((pic, i) => (
                     <div key={pic} className={`h-full flex-1 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'}`} />
                 ))}
             </div>
         )}
-        <img src={getOptimizedUrl(profile.profilePics[0], { width: 400, height: 600 })} alt={profile.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <img src={getOptimizedUrl(profile.profile_pics[0], { width: 400, height: 600 })} alt={profile.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col justify-end">
             <div>

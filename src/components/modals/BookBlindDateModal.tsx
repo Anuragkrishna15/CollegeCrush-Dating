@@ -31,6 +31,14 @@ const DEFAULT_LOCATIONS = [
     'Other (specify below)'
 ];
 
+// Enhanced safety features
+const SAFETY_FEATURES = [
+    { id: 'location_sharing', label: 'Share live location during date', icon: '📍' },
+    { id: 'emergency_contact', label: 'Emergency contact notification', icon: '🚨' },
+    { id: 'check_in', label: 'Automatic check-in reminders', icon: '⏰' },
+    { id: 'sos_button', label: 'Quick SOS button in chat', icon: '🆘' }
+];
+
 const BookBlindDateModal: React.FC<BookBlindDateModalProps> = ({ onClose }) => {
     const [selectedLocation, setSelectedLocation] = React.useState('Central Park Cafe');
     const [customLocation, setCustomLocation] = React.useState('');
@@ -38,6 +46,9 @@ const BookBlindDateModal: React.FC<BookBlindDateModalProps> = ({ onClose }) => {
     const [time, setTime] = React.useState('');
     const [selectedMeal, setSelectedMeal] = React.useState('Coffee & Snacks');
     const [loading, setLoading] = React.useState(false);
+    const [safetyFeatures, setSafetyFeatures] = React.useState<string[]>(['location_sharing', 'emergency_contact']);
+    const [flexibleTime, setFlexibleTime] = React.useState(false);
+    const [alternativeTime, setAlternativeTime] = React.useState('');
     const { showNotification } = useNotification();
     const { user } = useUser();
 
@@ -161,6 +172,68 @@ const BookBlindDateModal: React.FC<BookBlindDateModalProps> = ({ onClose }) => {
                         >
                             {MEAL_TYPES.map(meal => <option key={meal} value={meal}>{meal}</option>)}
                         </select>
+                    </div>
+
+                    {/* Flexible Scheduling */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="checkbox"
+                                id="flexible"
+                                checked={flexibleTime}
+                                onChange={(e) => setFlexibleTime(e.target.checked)}
+                                className="w-4 h-4 text-purple-600 bg-zinc-800 border-zinc-700 rounded focus:ring-purple-500"
+                            />
+                            <label htmlFor="flexible" className="text-sm text-zinc-300">
+                                I'm flexible with timing
+                            </label>
+                        </div>
+
+                        {flexibleTime && (
+                            <div>
+                                <label className="text-sm text-zinc-400 flex items-center gap-2 mb-2">
+                                    <Clock size={16} />
+                                    Alternative Time (Optional)
+                                </label>
+                                <input
+                                    type="time"
+                                    value={alternativeTime}
+                                    onChange={(e) => setAlternativeTime(e.target.value)}
+                                    className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Safety Features */}
+                    <div>
+                        <label className="text-sm text-zinc-400 mb-3 block flex items-center gap-2">
+                            <span className="text-green-400">🛡️</span>
+                            Safety Features
+                        </label>
+                        <div className="space-y-2">
+                            {SAFETY_FEATURES.map(feature => (
+                                <div key={feature.id} className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id={feature.id}
+                                        checked={safetyFeatures.includes(feature.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSafetyFeatures(prev => [...prev, feature.id]);
+                                            } else {
+                                                setSafetyFeatures(prev => prev.filter(f => f !== feature.id));
+                                            }
+                                        }}
+                                        className="w-4 h-4 text-green-600 bg-zinc-800 border-zinc-700 rounded focus:ring-green-500"
+                                    />
+                                    <label htmlFor={feature.id} className="text-sm text-zinc-300 flex items-center gap-2">
+                                        <span>{feature.icon}</span>
+                                        {feature.label}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     <MotionButton

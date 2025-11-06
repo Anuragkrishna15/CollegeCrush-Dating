@@ -1,246 +1,848 @@
 -- =================================================================
--- === DEFINITIVE FIX FOR "prompts column does not exist" ERROR ===
--- This block explicitly adds the 'prompts' column if it is missing
--- and then tells the Supabase API to refresh its cache.
--- RUN THIS ENTIRE SCRIPT.
--- =================================================================
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT FROM pg_attribute
-        WHERE attrelid = 'public.profiles'::regclass
-        AND attname = 'prompts'
-        AND NOT attisdropped
-    ) THEN
-        ALTER TABLE public.profiles ADD COLUMN prompts jsonb;
-    END IF;
-END $$;
-NOTIFY pgrst, 'reload schema';
+-- COLLEGECRUSH DATABASE - PRODUCTION READY SETUP
+-- Complete schema with all features, security, and performance optimizations
 -- =================================================================
 
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
--- 1. ENUM TYPES (Create if they don't exist, safe to re-run)
-DO $$ BEGIN CREATE TYPE public.membership_type AS ENUM ('Free', 'Trial', 'Premium'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.gender_enum AS ENUM ('Male', 'Female', 'Other'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.swipe_direction AS ENUM ('left', 'right'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.blind_date_status AS ENUM ('pending', 'accepted', 'completed', 'feedback_submitted'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.rsvp_status AS ENUM ('going', 'interested', 'none'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.trip_type AS ENUM ('Couple', 'Stranger'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.vibe_rating AS ENUM ('good', 'bad'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.report_type AS ENUM ('report', 'block'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.meal_type AS ENUM ('Breakfast', 'Lunch', 'Dinner', 'Coffee & Snacks'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE public.notification_type AS ENUM ('new_match', 'new_message', 'new_blind_date_request', 'blind_date_accepted', 'vibe_check_match'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+-- Create custom types
+DO $$ BEGIN
+    CREATE TYPE membership_type AS ENUM ('Free', 'Trial', 'Premium');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
--- Enable PostGIS extension for location-based queries
-CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA extensions;
+DO $$ BEGIN
+    CREATE TYPE gender_enum AS ENUM ('Male', 'Female', 'Other');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
+DO $$ BEGIN
+    CREATE TYPE swipe_direction AS ENUM ('left', 'right');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
--- 2. TABLES (Create if they don't exist)
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id uuid NOT NULL PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    name text NOT NULL,
-    dob date NOT NULL,
-    gender public.gender_enum NOT NULL,
-    bio text NOT NULL,
-    college text NOT NULL,
-    course text NOT NULL,
-    "profilePics" text[] NOT NULL,
-    tags text[] NOT NULL,
-    prompts jsonb,
-    membership public.membership_type DEFAULT 'Free'::public.membership_type NOT NULL,
-    email text NOT NULL UNIQUE,
-    latitude numeric,
-    longitude numeric,
-    notification_preferences jsonb,
-    privacy_settings jsonb
+DO $$ BEGIN
+    CREATE TYPE blind_date_status AS ENUM ('pending', 'accepted', 'completed', 'feedback_submitted', 'cancelled', 'expired');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE rsvp_status AS ENUM ('going', 'interested', 'none');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE trip_type AS ENUM ('Couple', 'Stranger', 'Group');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE vibe_rating AS ENUM ('good', 'bad', 'neutral');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE report_type AS ENUM ('report', 'block');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE meal_type AS ENUM ('Breakfast', 'Lunch', 'Dinner', 'Coffee & Snacks', 'Drinks');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE notification_type AS ENUM (
+        'new_match', 'new_message', 'new_blind_date_request', 'blind_date_accepted',
+        'vibe_check_match', 'community_post', 'achievement_unlocked', 'daily_challenge_completed',
+        'profile_boost_expired', 'subscription_expiring', 'system_announcement'
+    );
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE subscription_plan AS ENUM ('monthly', 'quarterly', 'yearly');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- =================================================================
+-- CORE TABLES
+-- =================================================================
+
+-- Profiles table with comprehensive user data
+DROP TABLE IF EXISTS profiles CASCADE;
+CREATE TABLE profiles (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    email text UNIQUE NOT NULL CHECK (email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    name text NOT NULL CHECK (length(trim(name)) > 0 AND length(name) <= 100),
+    dob date NOT NULL CHECK (dob <= CURRENT_DATE - INTERVAL '13 years'),
+    gender gender_enum NOT NULL,
+    bio text DEFAULT '' CHECK (length(bio) <= 500),
+    college text NOT NULL CHECK (length(trim(college)) > 0),
+    course text NOT NULL CHECK (length(trim(course)) > 0),
+    profile_pics text[] DEFAULT '{}' CHECK (array_length(profile_pics, 1) BETWEEN 1 AND 10),
+    tags text[] DEFAULT '{}' CHECK (array_length(tags, 1) <= 20),
+    prompts jsonb DEFAULT '[]'::jsonb,
+    membership membership_type DEFAULT 'Free' NOT NULL,
+    latitude numeric CHECK (latitude >= -90 AND latitude <= 90),
+    longitude numeric CHECK (longitude >= -180 AND longitude <= 180),
+    location_updated_at timestamptz,
+    notification_preferences jsonb DEFAULT '{
+        "matches": true,
+        "messages": true,
+        "events": false,
+        "marketing": false,
+        "system": true
+    }'::jsonb,
+    privacy_settings jsonb DEFAULT '{
+        "showInSwipe": true,
+        "showOnlineStatus": true,
+        "allowMessages": true,
+        "showLocation": false
+    }'::jsonb,
+    is_online boolean DEFAULT false,
+    last_seen timestamptz DEFAULT now(),
+    profile_completion_score integer DEFAULT 0 CHECK (profile_completion_score >= 0 AND profile_completion_score <= 100),
+    verification_status jsonb DEFAULT '{
+        "email_verified": false,
+        "college_verified": false,
+        "identity_verified": false
+    }'::jsonb,
+    account_status text DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'banned', 'deleted')),
+    suspension_reason text,
+    suspension_until timestamptz
 );
--- Add columns if they don't exist for existing setups
-DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'latitude' AND NOT attisdropped) THEN ALTER TABLE public.profiles ADD COLUMN latitude numeric; END IF; END $$;
-DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'longitude' AND NOT attisdropped) THEN ALTER TABLE public.profiles ADD COLUMN longitude numeric; END IF; END $$;
-DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'notification_preferences' AND NOT attisdropped) THEN ALTER TABLE public.profiles ADD COLUMN notification_preferences jsonb; END IF; END $$;
-DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'privacy_settings' AND NOT attisdropped) THEN ALTER TABLE public.profiles ADD COLUMN privacy_settings jsonb; END IF; END $$;
 
-
-CREATE TABLE IF NOT EXISTS public.swipes (
+-- Swipes table with performance optimizations
+DROP TABLE IF EXISTS swipes CASCADE;
+CREATE TABLE swipes (
     id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    swiper_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    swiped_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    direction public.swipe_direction NOT NULL,
-    UNIQUE (swiper_id, swiped_id)
+    created_at timestamptz DEFAULT now() NOT NULL,
+    swiper_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    swiped_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    direction swipe_direction NOT NULL,
+    swipe_source text DEFAULT 'swipe' CHECK (swipe_source IN ('swipe', 'super_like', 'boost')),
+    UNIQUE (swiper_id, swiped_id),
+    CHECK (swiper_id != swiped_id)
 );
-CREATE TABLE IF NOT EXISTS public.conversations (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    user1_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    user2_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    UNIQUE(user1_id, user2_id)
-);
-CREATE TABLE IF NOT EXISTS public.messages (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    conversation_id uuid NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-    sender_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    text text NOT NULL,
-    is_read boolean NOT NULL DEFAULT false
-);
--- Add is_read column to messages table if it doesn't exist (for backward compatibility)
-DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_attribute WHERE attrelid = 'public.messages'::regclass AND attname = 'is_read' AND NOT attisdropped) THEN ALTER TABLE public.messages ADD COLUMN is_read boolean DEFAULT false NOT NULL; END IF; END $$;
 
+-- Conversations with optimized structure
+DROP TABLE IF EXISTS conversations CASCADE;
+CREATE TABLE conversations (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    user1_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    user2_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    last_message_at timestamptz,
+    message_count integer DEFAULT 0,
+    is_active boolean DEFAULT true,
+    UNIQUE(user1_id, user2_id),
+    CHECK (user1_id < user2_id)
+);
 
-CREATE TABLE IF NOT EXISTS public.events (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    name text NOT NULL,
-    date text NOT NULL,
-    college text NOT NULL,
-    "imageUrl" text NOT NULL
+-- Messages with read receipts and reactions
+DROP TABLE IF EXISTS messages CASCADE;
+CREATE TABLE messages (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    content_type text DEFAULT 'text' CHECK (content_type IN ('text', 'image', 'gif', 'location')),
+    text text,
+    media_url text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    is_read boolean DEFAULT false,
+    read_at timestamptz,
+    is_deleted boolean DEFAULT false,
+    reply_to_message_id uuid REFERENCES messages(id) ON DELETE SET NULL,
+    reactions jsonb DEFAULT '{}'::jsonb,
+    CHECK (
+        (content_type = 'text' AND text IS NOT NULL AND length(trim(text)) > 0) OR
+        (content_type IN ('image', 'gif') AND media_url IS NOT NULL) OR
+        (content_type = 'location' AND metadata IS NOT NULL)
+    )
 );
-CREATE TABLE IF NOT EXISTS public.event_rsvps (
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    event_id uuid NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    status public.rsvp_status NOT NULL,
-    PRIMARY KEY(user_id, event_id)
-);
-CREATE TABLE IF NOT EXISTS public.trips (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    location text NOT NULL,
-    date text NOT NULL,
-    type public.trip_type NOT NULL,
-    slots integer NOT NULL,
-    "imageUrl" text NOT NULL,
-    fare integer NOT NULL DEFAULT 0,
-    details text NOT NULL DEFAULT '',
-    latitude numeric,
-    longitude numeric
-);
-CREATE TABLE IF NOT EXISTS public.trip_bookings (
-    id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    trip_id uuid NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    UNIQUE(trip_id, user_id)
-);
-CREATE TABLE IF NOT EXISTS public.blind_dates (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    requesting_user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    requested_user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
-    cafe text NOT NULL,
-    meal public.meal_type NOT NULL,
-    time text NOT NULL,
-    status public.blind_date_status DEFAULT 'pending'::public.blind_date_status NOT NULL,
-    date_time timestamptz
-);
--- Modify blind_dates for proposal system
-ALTER TABLE public.blind_dates ALTER COLUMN requested_user_id DROP NOT NULL;
-DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_attribute WHERE attrelid = 'public.blind_dates'::regclass AND attname = 'date_time' AND NOT attisdropped) THEN ALTER TABLE public.blind_dates ADD COLUMN date_time timestamptz; END IF; END $$;
 
-CREATE TABLE IF NOT EXISTS public.comments (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    profile_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    author_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    text text NOT NULL
+-- =================================================================
+-- FEATURE TABLES
+-- =================================================================
+
+-- Blind dates with enhanced features
+DROP TABLE IF EXISTS blind_dates CASCADE;
+CREATE TABLE blind_dates (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    requesting_user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    requested_user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+    cafe text NOT NULL CHECK (length(trim(cafe)) > 0),
+    meal meal_type NOT NULL,
+    proposed_date date NOT NULL CHECK (proposed_date >= CURRENT_DATE),
+    proposed_time time NOT NULL,
+    date_time timestamptz NOT NULL,
+    status blind_date_status DEFAULT 'pending' NOT NULL,
+    safety_features jsonb DEFAULT '[]'::jsonb,
+    flexible_time boolean DEFAULT false,
+    alternative_times jsonb DEFAULT '[]'::jsonb,
+    special_requests text,
+    meeting_point text,
+    estimated_cost integer,
+    cancellation_reason text,
+    completed_at timestamptz,
+    feedback_submitted_at timestamptz,
+    CHECK (requesting_user_id != requested_user_id)
 );
-CREATE TABLE IF NOT EXISTS public.reports_blocks (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    reporting_user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    reported_user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    reason text,
-    type public.report_type NOT NULL,
-    UNIQUE(reporting_user_id, reported_user_id)
-);
-CREATE TABLE IF NOT EXISTS public.vibe_checks (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    blind_date_id uuid NOT NULL REFERENCES public.blind_dates(id) ON DELETE CASCADE,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    rating public.vibe_rating,
-    tags text[],
+
+-- Vibe checks with detailed ratings
+
+DROP TABLE IF EXISTS vibe_checks CASCADE;
+CREATE TABLE vibe_checks (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    blind_date_id uuid NOT NULL REFERENCES blind_dates(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    overall_rating vibe_rating,
+    punctuality integer CHECK (punctuality >= 1 AND punctuality <= 5),
+    conversation integer CHECK (conversation >= 1 AND conversation <= 5),
+    respect integer CHECK (respect >= 1 AND respect <= 5),
+    chemistry integer CHECK (chemistry >= 1 AND chemistry <= 5),
+    communication integer CHECK (communication >= 1 AND communication <= 5),
+    appearance integer CHECK (appearance >= 1 AND appearance <= 5),
+    reliability integer CHECK (reliability >= 1 AND reliability <= 5),
+    comments text CHECK (length(comments) <= 1000),
+    would_meet_again boolean,
+    tags text[] DEFAULT '{}',
+    is_anonymous boolean DEFAULT false,
     UNIQUE(blind_date_id, user_id)
 );
-CREATE TABLE IF NOT EXISTS public.profile_boosts (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id uuid NOT NULL UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    boost_end_time timestamp with time zone NOT NULL
+
+-- =================================================================
+-- COMMUNITY FEATURES
+-- =================================================================
+
+-- Community posts with rich content
+
+DROP TABLE IF EXISTS community_posts CASCADE;
+CREATE TABLE community_posts (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    title text NOT NULL CHECK (length(trim(title)) > 0 AND length(title) <= 200),
+    content text NOT NULL CHECK (length(trim(content)) > 0 AND length(content) <= 10000),
+    category text NOT NULL,
+    author_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+    is_anonymous boolean DEFAULT false,
+    is_pinned boolean DEFAULT false,
+    upvotes integer DEFAULT 0,
+    downvotes integer DEFAULT 0,
+    comment_count integer DEFAULT 0,
+    view_count integer DEFAULT 0,
+    last_activity_at timestamptz DEFAULT now(),
+    tags text[] DEFAULT '{}',
+    media_urls text[] DEFAULT '{}',
+    poll_data jsonb,
+    event_data jsonb,
+    is_deleted boolean DEFAULT false,
+    deleted_at timestamptz,
+    deletion_reason text
 );
-CREATE TABLE IF NOT EXISTS public.rizz_scores (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    conversation_id uuid NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-    score integer NOT NULL,
-    feedback text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    UNIQUE(user_id, conversation_id)
+
+-- Community comments with threading
+
+DROP TABLE IF EXISTS community_comments CASCADE;
+CREATE TABLE community_comments (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    post_id uuid NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+    author_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+    parent_id uuid REFERENCES community_comments(id) ON DELETE CASCADE,
+    content text NOT NULL CHECK (length(trim(content)) > 0 AND length(content) <= 2000),
+    is_anonymous boolean DEFAULT false,
+    upvotes integer DEFAULT 0,
+    downvotes integer DEFAULT 0,
+    is_deleted boolean DEFAULT false,
+    deleted_at timestamptz,
+    depth integer DEFAULT 0 CHECK (depth >= 0 AND depth <= 5)
 );
-CREATE TABLE IF NOT EXISTS public.notifications (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type public.notification_type NOT NULL,
-    message text NOT NULL,
-    source_entity_id uuid,
-    is_read boolean DEFAULT false NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+
+-- Community votes
+
+DROP TABLE IF EXISTS community_votes CASCADE;
+CREATE TABLE community_votes (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    post_id uuid REFERENCES community_posts(id) ON DELETE CASCADE,
+    comment_id uuid REFERENCES community_comments(id) ON DELETE CASCADE,
+    vote_type text NOT NULL CHECK (vote_type IN ('up', 'down')),
+    UNIQUE(user_id, post_id),
+    UNIQUE(user_id, comment_id),
+    CHECK (
+        (post_id IS NOT NULL AND comment_id IS NULL) OR
+        (post_id IS NULL AND comment_id IS NOT NULL)
+    )
 );
-CREATE TABLE IF NOT EXISTS public.payments (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    amount integer NOT NULL,
-    currency text NOT NULL DEFAULT 'INR',
-    plan public.membership_type NOT NULL,
-    status text NOT NULL,
-    provider text NOT NULL,
-    provider_order_id text NULL,
-    provider_payment_id text NULL
+
+-- =================================================================
+-- GAMIFICATION SYSTEM
+-- =================================================================
+
+-- User statistics and achievements
+
+DROP TABLE IF EXISTS user_stats CASCADE;
+CREATE TABLE user_stats (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    total_swipes integer DEFAULT 0,
+    total_matches integer DEFAULT 0,
+    total_messages integer DEFAULT 0,
+    total_dates integer DEFAULT 0,
+    total_blind_dates integer DEFAULT 0,
+    total_community_posts integer DEFAULT 0,
+    total_community_comments integer DEFAULT 0,
+    current_streak integer DEFAULT 0,
+    longest_streak integer DEFAULT 0,
+    points integer DEFAULT 0,
+    level integer DEFAULT 1,
+    experience_points integer DEFAULT 0,
+    last_activity_at timestamptz DEFAULT now(),
+    weekly_stats jsonb DEFAULT '{
+        "swipes": 0,
+        "matches": 0,
+        "messages": 0,
+        "dates": 0,
+        "posts": 0,
+        "week_start": null
+    }'::jsonb
 );
-CREATE TABLE IF NOT EXISTS public.ads (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
+
+-- Achievements system
+
+DROP TABLE IF EXISTS achievements CASCADE;
+CREATE TABLE achievements (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    achievement_id text NOT NULL,
+    name text NOT NULL,
+    description text NOT NULL,
+    icon text NOT NULL,
+    category text NOT NULL,
+    points_reward integer DEFAULT 0,
+    unlocked_at timestamptz DEFAULT now(),
+    progress_current integer DEFAULT 0,
+    progress_target integer,
+    is_completed boolean DEFAULT false,
+    UNIQUE(user_id, achievement_id)
+);
+
+-- Daily challenges
+
+DROP TABLE IF EXISTS daily_challenges CASCADE;
+CREATE TABLE daily_challenges (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    challenge_id text NOT NULL,
     title text NOT NULL,
-    image_url text NOT NULL,
-    link text NOT NULL
+    description text NOT NULL,
+    type text NOT NULL,
+    category text NOT NULL,
+    target integer NOT NULL,
+    progress integer DEFAULT 0,
+    reward_points integer NOT NULL,
+    reward_type text DEFAULT 'points',
+    reward_data jsonb,
+    completed boolean DEFAULT false,
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    completed_at timestamptz,
+    UNIQUE(user_id, challenge_id)
 );
 
--- 3. DATABASE FUNCTIONS (These are idempotent, safe to re-run)
+-- Rizz scores for conversation analysis
 
--- Drop existing functions to allow for return type changes. This prevents "cannot change return type" errors.
-DROP FUNCTION IF EXISTS public.get_nearby_proposals(uuid);
-DROP FUNCTION IF EXISTS public.get_my_proposals(uuid);
-DROP FUNCTION IF EXISTS public.accept_proposal(uuid, uuid);
-DROP FUNCTION IF EXISTS public.cancel_my_proposal(uuid);
-DROP FUNCTION IF EXISTS public.get_my_dates(uuid);
-DROP FUNCTION IF EXISTS public.handle_swipe(uuid, uuid, public.swipe_direction);
-DROP FUNCTION IF EXISTS public.get_conversations(uuid);
-DROP FUNCTION IF EXISTS public.get_events_with_rsvp(uuid);
-DROP FUNCTION IF EXISTS public.get_likers(uuid);
-DROP FUNCTION IF EXISTS public.get_swipe_candidates(uuid, public.gender_enum);
-DROP FUNCTION IF EXISTS public.propose_blind_date(text,timestamptz,public.meal_type);
-DROP FUNCTION IF EXISTS public.create_blind_date_request(uuid,text,text,public.meal_type); -- old one, good to keep
+DROP TABLE IF EXISTS rizz_scores CASCADE;
+CREATE TABLE rizz_scores (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    message_id uuid REFERENCES messages(id) ON DELETE CASCADE,
+    score integer NOT NULL CHECK (score >= 0 AND score <= 100),
+    metrics jsonb NOT NULL DEFAULT '{
+        "response_time": 0,
+        "message_quality": 0,
+        "engagement": 0,
+        "creativity": 0,
+        "confidence": 0,
+        "humor": 0,
+        "empathy": 0,
+        "consistency": 0
+    }'::jsonb,
+    feedback jsonb DEFAULT '{}'::jsonb,
+    created_at timestamptz DEFAULT now(),
+    UNIQUE(user_id, conversation_id, message_id)
+);
 
--- Function to update a user's location
-CREATE OR REPLACE FUNCTION public.update_user_location(p_lat numeric, p_lon numeric)
+-- =================================================================
+-- MONETIZATION & ADMIN FEATURES
+-- =================================================================
+
+-- Profile boosts
+
+DROP TABLE IF EXISTS profile_boosts CASCADE;
+CREATE TABLE profile_boosts (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    boost_type text DEFAULT 'standard' CHECK (boost_type IN ('standard', 'premium', 'super')),
+    boost_duration_hours integer DEFAULT 24,
+    boost_end_time timestamptz NOT NULL,
+    is_active boolean DEFAULT true,
+    boost_multiplier numeric DEFAULT 1.5,
+    impressions_count integer DEFAULT 0,
+    matches_count integer DEFAULT 0,
+    CHECK (boost_end_time > created_at)
+);
+
+-- Subscription system
+
+DROP TABLE IF EXISTS subscriptions CASCADE;
+CREATE TABLE subscriptions (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    plan subscription_plan NOT NULL,
+    status text DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'expired', 'past_due')),
+    current_period_start timestamptz NOT NULL,
+    current_period_end timestamptz NOT NULL,
+    cancel_at_period_end boolean DEFAULT false,
+    cancelled_at timestamptz,
+    stripe_subscription_id text UNIQUE,
+    stripe_customer_id text,
+    features jsonb DEFAULT '{
+        "unlimited_swipes": false,
+        "see_who_liked_you": false,
+        "boosts_per_month": 0,
+        "super_likes_per_day": 0,
+        "rewind_last_swipe": false,
+        "hide_ads": false,
+        "read_receipts": false,
+        "priority_matching": false
+    }'::jsonb
+);
+
+-- Payments table
+
+DROP TABLE IF EXISTS payments CASCADE;
+CREATE TABLE payments (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    amount integer NOT NULL CHECK (amount > 0),
+    currency text NOT NULL DEFAULT 'INR',
+    payment_type text NOT NULL CHECK (payment_type IN ('subscription', 'boost', 'super_like', 'premium_feature')),
+    plan subscription_plan,
+    status payment_status DEFAULT 'pending' NOT NULL,
+    provider text NOT NULL,
+    provider_payment_id text,
+    provider_order_id text,
+    provider_refund_id text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    processed_at timestamptz,
+    refunded_at timestamptz,
+    refund_amount integer
+);
+
+-- Ads system
+
+DROP TABLE IF EXISTS ads CASCADE;
+CREATE TABLE ads (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    title text NOT NULL CHECK (length(trim(title)) > 0),
+    content text,
+    image_url text,
+    link_url text,
+    target_audience jsonb DEFAULT '{}'::jsonb,
+    is_active boolean DEFAULT true,
+    priority integer DEFAULT 1,
+    impression_count integer DEFAULT 0,
+    click_count integer DEFAULT 0,
+    start_date timestamptz,
+    end_date timestamptz,
+    budget_daily numeric,
+    budget_total numeric,
+    spent_today numeric DEFAULT 0,
+    spent_total numeric DEFAULT 0,
+    advertiser_info jsonb DEFAULT '{}'::jsonb
+);
+
+-- =================================================================
+-- SOCIAL & CAMPUS FEATURES
+-- =================================================================
+
+-- Events
+
+DROP TABLE IF EXISTS events CASCADE;
+CREATE TABLE events (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    title text NOT NULL CHECK (length(trim(title)) > 0),
+    description text,
+    event_date date NOT NULL,
+    event_time time,
+    end_time time,
+    location text NOT NULL,
+    latitude numeric CHECK (latitude >= -90 AND latitude <= 90),
+    longitude numeric CHECK (longitude >= -180 AND longitude <= 180),
+    college text NOT NULL,
+    organizer_id uuid REFERENCES profiles(id) ON DELETE SET NULL,
+    category text NOT NULL,
+    max_attendees integer,
+    current_attendees integer DEFAULT 0,
+    price numeric DEFAULT 0,
+    image_url text,
+    tags text[] DEFAULT '{}',
+    is_cancelled boolean DEFAULT false,
+    cancellation_reason text,
+    requires_approval boolean DEFAULT false,
+    is_public boolean DEFAULT true
+);
+
+-- Event RSVPs
+
+DROP TABLE IF EXISTS event_rsvps CASCADE;
+CREATE TABLE event_rsvps (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    status rsvp_status NOT NULL,
+    additional_guests integer DEFAULT 0,
+    special_requests text,
+    UNIQUE(user_id, event_id)
+);
+
+-- Trips
+
+DROP TABLE IF EXISTS trips CASCADE;
+CREATE TABLE trips (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    title text NOT NULL CHECK (length(trim(title)) > 0),
+    description text,
+    trip_type trip_type NOT NULL,
+    destination text NOT NULL,
+    departure_date date NOT NULL,
+    return_date date,
+    latitude numeric CHECK (latitude >= -90 AND latitude <= 90),
+    longitude numeric CHECK (longitude >= -180 AND longitude <= 180),
+    max_participants integer,
+    current_participants integer DEFAULT 0,
+    price_per_person numeric,
+    total_cost numeric,
+    organizer_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    requirements jsonb DEFAULT '{}'::jsonb,
+    itinerary jsonb DEFAULT '[]'::jsonb,
+    image_url text,
+    is_cancelled boolean DEFAULT false,
+    cancellation_reason text,
+    CHECK (return_date IS NULL OR return_date >= departure_date)
+);
+
+-- Trip bookings
+
+DROP TABLE IF EXISTS trip_bookings CASCADE;
+CREATE TABLE trip_bookings (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    status text DEFAULT 'confirmed' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+    payment_status payment_status DEFAULT 'pending',
+    special_requests text,
+    emergency_contact jsonb,
+    UNIQUE(trip_id, user_id)
+);
+
+-- =================================================================
+-- MODERATION & SAFETY
+-- =================================================================
+
+-- Reports and blocks
+
+DROP TABLE IF EXISTS reports_blocks CASCADE;
+CREATE TABLE reports_blocks (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    reporter_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    reported_user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+    reported_post_id uuid REFERENCES community_posts(id) ON DELETE CASCADE,
+    reported_comment_id uuid REFERENCES community_comments(id) ON DELETE CASCADE,
+    report_type report_type NOT NULL,
+    reason text NOT NULL,
+    description text,
+    status text DEFAULT 'pending' CHECK (status IN ('pending', 'investigating', 'resolved', 'dismissed')),
+    resolved_by uuid REFERENCES profiles(id) ON DELETE SET NULL,
+    resolved_at timestamptz,
+    resolution_notes text,
+    severity text DEFAULT 'low' CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    UNIQUE(reporter_id, reported_user_id),
+    CHECK (
+        (reported_user_id IS NOT NULL AND reported_post_id IS NULL AND reported_comment_id IS NULL) OR
+        (reported_user_id IS NULL AND reported_post_id IS NOT NULL AND reported_comment_id IS NULL) OR
+        (reported_user_id IS NULL AND reported_post_id IS NULL AND reported_comment_id IS NOT NULL)
+    )
+);
+
+-- Admin actions log
+
+DROP TABLE IF EXISTS admin_actions CASCADE;
+CREATE TABLE admin_actions (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    admin_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    action_type text NOT NULL,
+    target_type text NOT NULL CHECK (target_type IN ('user', 'post', 'comment', 'event', 'trip')),
+    target_id uuid NOT NULL,
+    action_details jsonb DEFAULT '{}'::jsonb,
+    reason text,
+    ip_address inet,
+    user_agent text
+);
+
+-- =================================================================
+-- NOTIFICATIONS SYSTEM
+-- =================================================================
+
+-- Notifications
+
+DROP TABLE IF EXISTS notifications CASCADE;
+CREATE TABLE notifications (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    type notification_type NOT NULL,
+    title text NOT NULL,
+    message text NOT NULL,
+    data jsonb DEFAULT '{}'::jsonb,
+    is_read boolean DEFAULT false,
+    read_at timestamptz,
+    expires_at timestamptz,
+    priority text DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    category text DEFAULT 'general' CHECK (category IN ('general', 'matches', 'messages', 'events', 'system'))
+);
+
+-- Push notification tokens
+
+DROP TABLE IF EXISTS push_tokens CASCADE;
+CREATE TABLE push_tokens (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    token text NOT NULL,
+    device_type text NOT NULL CHECK (device_type IN ('ios', 'android', 'web')),
+    device_id text,
+    is_active boolean DEFAULT true,
+    last_used_at timestamptz DEFAULT now(),
+    UNIQUE(user_id, token)
+);
+
+-- =================================================================
+-- PERFORMANCE INDEXES
+-- =================================================================
+
+-- Core performance indexes
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles USING gist (point(longitude, latitude));
+CREATE INDEX IF NOT EXISTS idx_profiles_membership ON profiles(membership);
+CREATE INDEX IF NOT EXISTS idx_profiles_online_status ON profiles(is_online, last_seen);
+
+-- Swipe performance
+CREATE INDEX IF NOT EXISTS idx_swipes_swiper_id ON swipes(swiper_id);
+CREATE INDEX IF NOT EXISTS idx_swipes_swiped_id ON swipes(swiped_id);
+CREATE INDEX IF NOT EXISTS idx_swipes_created_at ON swipes(created_at DESC);
+
+-- Conversation performance
+CREATE INDEX IF NOT EXISTS idx_conversations_user1_id ON conversations(user1_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_user2_id ON conversations(user2_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON conversations(last_message_at DESC);
+
+-- Message performance
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(conversation_id, is_read) WHERE is_read = false;
+
+-- Blind date performance
+CREATE INDEX IF NOT EXISTS idx_blind_dates_requesting_user ON blind_dates(requesting_user_id);
+CREATE INDEX IF NOT EXISTS idx_blind_dates_requested_user ON blind_dates(requested_user_id);
+CREATE INDEX IF NOT EXISTS idx_blind_dates_date_time ON blind_dates(date_time);
+CREATE INDEX IF NOT EXISTS idx_blind_dates_status ON blind_dates(status);
+
+-- Community performance
+CREATE INDEX IF NOT EXISTS idx_community_posts_category ON community_posts(category, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_posts_author ON community_posts(author_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_comments_post ON community_comments(post_id, created_at);
+
+-- Notification performance
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, is_read, created_at DESC) WHERE is_read = false;
+
+-- Gamification performance
+CREATE INDEX IF NOT EXISTS idx_user_stats_user_id ON user_stats(user_id);
+CREATE INDEX IF NOT EXISTS idx_achievements_user_id ON achievements(user_id, unlocked_at DESC);
+
+-- Location-based queries
+CREATE INDEX IF NOT EXISTS idx_events_location ON events USING gist (point(longitude, latitude));
+CREATE INDEX IF NOT EXISTS idx_trips_location ON trips USING gist (point(longitude, latitude));
+
+-- Additional performance optimizations
+CREATE INDEX IF NOT EXISTS idx_profiles_verification ON profiles(verification_status);
+CREATE INDEX IF NOT EXISTS idx_profiles_account_status ON profiles(account_status);
+CREATE INDEX IF NOT EXISTS idx_profiles_college_course ON profiles(college, course);
+CREATE INDEX IF NOT EXISTS idx_community_posts_is_pinned ON community_posts(is_pinned, created_at DESC) WHERE is_pinned = true;
+CREATE INDEX IF NOT EXISTS idx_community_posts_is_deleted ON community_posts(is_deleted) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_community_comments_is_deleted ON community_comments(is_deleted) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_blind_dates_proposed_date ON blind_dates(proposed_date);
+CREATE INDEX IF NOT EXISTS idx_blind_dates_flexible_time ON blind_dates(flexible_time) WHERE flexible_time = true;
+CREATE INDEX IF NOT EXISTS idx_daily_challenges_user_expires ON daily_challenges(user_id, expires_at) WHERE completed = false;
+CREATE INDEX IF NOT EXISTS idx_payments_user_created ON payments(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON subscriptions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_reports_blocks_status ON reports_blocks(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user_active ON push_tokens(user_id, is_active) WHERE is_active = true;
+
+-- =================================================================
+-- DATABASE FUNCTIONS
+-- =================================================================
+
+-- Function to safely update user location
+CREATE OR REPLACE FUNCTION update_user_location(p_lat numeric, p_lon numeric)
 RETURNS void
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 BEGIN
-  UPDATE public.profiles
-  SET latitude = p_lat, longitude = p_lon
-  WHERE id = auth.uid();
+    -- Validate coordinates
+    IF p_lat IS NULL OR p_lon IS NULL THEN
+        RAISE EXCEPTION 'Coordinates cannot be null';
+    END IF;
+
+    IF p_lat < -90 OR p_lat > 90 THEN
+        RAISE EXCEPTION 'Invalid latitude: must be between -90 and 90';
+    END IF;
+
+    IF p_lon < -180 OR p_lon > 180 THEN
+        RAISE EXCEPTION 'Invalid longitude: must be between -180 and 180';
+    END IF;
+
+    UPDATE profiles
+    SET
+        latitude = p_lat,
+        longitude = p_lon,
+        location_updated_at = now()
+    WHERE id = auth.uid();
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'User profile not found';
+    END IF;
 END;
 $$;
 
--- New function for proposing a blind date that notifies nearby users
-CREATE OR REPLACE FUNCTION public.propose_blind_date(
+-- Enhanced swipe handling with match creation
+CREATE OR REPLACE FUNCTION handle_swipe(p_swiper_id uuid, p_swiped_id uuid, p_direction swipe_direction)
+RETURNS TABLE(match_created boolean, conversation_id uuid)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_match_exists boolean;
+    v_conversation_id uuid;
+    v_swiper_membership membership_type;
+    v_swiped_membership membership_type;
+BEGIN
+    -- Validate inputs
+    IF p_swiper_id = p_swiped_id THEN
+        RAISE EXCEPTION 'Cannot swipe on yourself';
+    END IF;
+
+    -- Check if users exist and get membership info
+    SELECT membership INTO v_swiper_membership FROM profiles WHERE id = p_swiper_id;
+    SELECT membership INTO v_swiped_membership FROM profiles WHERE id = p_swiped_id;
+
+    IF v_swiper_membership IS NULL OR v_swiped_membership IS NULL THEN
+        RAISE EXCEPTION 'Invalid user IDs';
+    END IF;
+
+    -- Check for blocks
+    IF EXISTS (
+        SELECT 1 FROM reports_blocks
+        WHERE (reporter_id = p_swiper_id AND reported_user_id = p_swiped_id AND report_type = 'block')
+           OR (reporter_id = p_swiped_id AND reported_user_id = p_swiper_id AND report_type = 'block')
+    ) THEN
+        RAISE EXCEPTION 'Users have blocked each other';
+    END IF;
+
+    -- Insert or update swipe
+    INSERT INTO swipes(swiper_id, swiped_id, direction)
+    VALUES (p_swiper_id, p_swiped_id, p_direction)
+    ON CONFLICT (swiper_id, swiped_id) DO UPDATE SET
+        direction = p_direction,
+        created_at = now();
+
+    -- Update user stats
+    PERFORM update_user_stats(p_swiper_id);
+
+    IF p_direction = 'right' THEN
+        -- Check for mutual match
+        SELECT EXISTS (
+            SELECT 1 FROM swipes
+            WHERE swiper_id = p_swiped_id
+              AND swiped_id = p_swiper_id
+              AND direction = 'right'
+        ) INTO v_match_exists;
+
+        IF v_match_exists THEN
+            -- Create conversation
+            INSERT INTO conversations(user1_id, user2_id)
+            VALUES (LEAST(p_swiper_id, p_swiped_id), GREATEST(p_swiper_id, p_swiped_id))
+            ON CONFLICT(user1_id, user2_id) DO NOTHING
+            RETURNING id INTO v_conversation_id;
+
+            IF v_conversation_id IS NULL THEN
+                SELECT id INTO v_conversation_id
+                FROM conversations
+                WHERE (user1_id = p_swiper_id AND user2_id = p_swiped_id)
+                   OR (user1_id = p_swiped_id AND user2_id = p_swiper_id);
+            END IF;
+
+            -- Create match notifications
+            INSERT INTO notifications(user_id, type, title, message, data)
+            VALUES
+                (p_swiper_id, 'new_match', 'New Match!', 'You matched with someone!', jsonb_build_object('conversation_id', v_conversation_id)),
+                (p_swiped_id, 'new_match', 'New Match!', 'You matched with someone!', jsonb_build_object('conversation_id', v_conversation_id));
+
+            RETURN QUERY SELECT true, v_conversation_id;
+        ELSE
+            RETURN QUERY SELECT false, null::uuid;
+        END IF;
+    ELSE
+        RETURN QUERY SELECT false, null::uuid;
+    END IF;
+END;
+$$;
+
+-- Enhanced blind date proposal function
+CREATE OR REPLACE FUNCTION propose_blind_date(
     p_cafe text,
     p_date_time timestamptz,
-    p_meal public.meal_type
+    p_meal meal_type
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -248,40 +850,68 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_new_date_id uuid;
-    v_proposer_id uuid := auth.uid();
+    v_proposer_id uuid;
     v_proposer_lat numeric;
     v_proposer_lon numeric;
     v_proposer_name text;
     nearby_user RECORD;
+    v_proposed_date date;
+    v_proposed_time time;
 BEGIN
+    v_proposer_id := auth.uid();
+
+    -- Validate input
+    IF p_cafe IS NULL OR trim(p_cafe) = '' THEN
+        RAISE EXCEPTION 'Cafe name is required';
+    END IF;
+
+    IF p_date_time IS NULL OR p_date_time <= now() THEN
+        RAISE EXCEPTION 'Date and time must be in the future';
+    END IF;
+
     -- Get proposer's details
     SELECT latitude, longitude, name
     INTO v_proposer_lat, v_proposer_lon, v_proposer_name
-    FROM public.profiles
+    FROM profiles
     WHERE id = v_proposer_id;
 
-    -- Check if proposer has location data
     IF v_proposer_lat IS NULL OR v_proposer_lon IS NULL THEN
         RAISE EXCEPTION 'User location not set. Cannot propose a date.';
     END IF;
 
     -- Insert the new blind date proposal
-    INSERT INTO public.blind_dates (requesting_user_id, cafe, date_time, meal, status, time)
-    VALUES (v_proposer_id, p_cafe, p_date_time, p_meal, 'pending', to_char(p_date_time, 'YYYY-MM-DD HH24:MI:SS'))
+    INSERT INTO blind_dates (
+        requesting_user_id,
+        cafe,
+        proposed_date,
+        proposed_time,
+        date_time,
+        meal,
+        status
+    )
+    VALUES (
+        v_proposer_id,
+        trim(p_cafe),
+        p_date_time::date,
+        p_date_time::time,
+        p_date_time,
+        p_meal,
+        'pending'
+    )
     RETURNING id INTO v_new_date_id;
 
-    -- Find nearby users and create notifications
+    -- Find nearby users and create notifications (with error handling)
     FOR nearby_user IN
         SELECT p.id
-        FROM public.profiles p
+        FROM profiles p
         WHERE
             p.id != v_proposer_id
             AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL
             -- Check for blocks
             AND NOT EXISTS (
-                SELECT 1 FROM public.reports_blocks rb
-                WHERE (rb.reporting_user_id = v_proposer_id AND rb.reported_user_id = p.id)
-                   OR (rb.reporting_user_id = p.id AND rb.reported_user_id = v_proposer_id)
+                SELECT 1 FROM reports_blocks rb
+                WHERE (rb.reporter_id = v_proposer_id AND rb.reported_user_id = p.id AND rb.report_type = 'block')
+                   OR (rb.reporter_id = p.id AND rb.reported_user_id = v_proposer_id AND rb.report_type = 'block')
             )
             -- Use PostGIS to find users within 20km
             AND ST_DWithin(
@@ -290,282 +920,176 @@ BEGIN
                 20000 -- 20km radius in meters
             )
     LOOP
-        -- Insert a notification for each nearby user
-        INSERT INTO public.notifications (user_id, type, message, source_entity_id)
-        VALUES (nearby_user.id, 'new_blind_date_request', v_proposer_name || ' has proposed a blind date near you!', v_new_date_id);
+        -- Insert notification (ignore if fails)
+        BEGIN
+            INSERT INTO notifications (
+                user_id,
+                type,
+                title,
+                message,
+                data
+            )
+            VALUES (
+                nearby_user.id,
+                'new_blind_date_request',
+                'New Blind Date Proposal!',
+                v_proposer_name || ' has proposed a blind date near you!',
+                jsonb_build_object('blind_date_id', v_new_date_id)
+            );
+        EXCEPTION WHEN others THEN
+            -- Continue if notification fails
+            NULL;
+        END;
     END LOOP;
 
     RETURN v_new_date_id;
 END;
 $$;
 
-
--- Updated function to get nearby proposals AND include proposer's basic profile data
-CREATE OR REPLACE FUNCTION public.get_nearby_proposals(p_user_id uuid)
-RETURNS TABLE (
-    id uuid,
-    cafe text,
-    meal public.meal_type,
-    date_time timestamptz,
-    proposer_id uuid,
-    proposer_name text,
-    proposer_profile_pics text[],
-    proposer_college text,
-    proposer_course text,
-    proposer_tags text[],
-    proposer_bio text,
-    proposer_prompts jsonb,
-    proposer_membership public.membership_type
-)
+-- Enhanced user stats update function
+CREATE OR REPLACE FUNCTION update_user_stats(p_user_id uuid)
+RETURNS void
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 DECLARE
-    v_user_lat numeric;
-    v_user_lon numeric;
-    v_user_gender public.gender_enum;
+    v_swipes integer;
+    v_matches integer;
+    v_messages integer;
+    v_dates integer;
+    v_posts integer;
+    v_comments integer;
+    v_current_streak integer;
+    v_points integer;
+    v_level integer;
+    v_experience_points integer;
 BEGIN
-    SELECT latitude, longitude, gender INTO v_user_lat, v_user_lon, v_user_gender FROM public.profiles WHERE id = p_user_id;
-    IF v_user_lat IS NULL OR v_user_lon IS NULL THEN RETURN; END IF;
+    -- Get comprehensive stats
+    SELECT COUNT(*) INTO v_swipes FROM swipes WHERE swiper_id = p_user_id;
+    SELECT COUNT(*) INTO v_matches FROM conversations WHERE user1_id = p_user_id OR user2_id = p_user_id;
+    SELECT COUNT(*) INTO v_messages FROM messages WHERE sender_id = p_user_id;
+    SELECT COUNT(*) INTO v_dates FROM blind_dates WHERE requesting_user_id = p_user_id OR requested_user_id = p_user_id;
+    SELECT COUNT(*) INTO v_posts FROM community_posts WHERE author_id = p_user_id AND NOT is_deleted;
+    SELECT COUNT(*) INTO v_comments FROM community_comments WHERE author_id = p_user_id AND NOT is_deleted;
 
-    RETURN QUERY
-    SELECT
-        bd.id as id,
-        bd.cafe as cafe,
-        bd.meal::public.meal_type as meal,
-        bd.date_time as date_time,
-        proposer.id as proposer_id,
-        proposer.name as proposer_name,
-        proposer."profilePics" as proposer_profile_pics,
-        proposer.college as proposer_college,
-        proposer.course as proposer_course,
-        proposer.tags as proposer_tags,
-        proposer.bio as proposer_bio,
-        proposer.prompts as proposer_prompts,
-        proposer.membership as proposer_membership
-    FROM public.blind_dates bd
-    JOIN public.profiles proposer ON bd.requesting_user_id = proposer.id
-    WHERE bd.requested_user_id IS NULL
-      AND bd.requesting_user_id != p_user_id
-      AND bd.date_time > now()
-      AND proposer.latitude IS NOT NULL AND proposer.longitude IS NOT NULL
-      AND (
-          v_user_gender = 'Other'
-          OR proposer.gender = CASE WHEN v_user_gender = 'Male' THEN 'Female' WHEN v_user_gender = 'Female' THEN 'Male' END::public.gender_enum
-          OR proposer.gender = 'Other'
-      )
-      AND NOT EXISTS (SELECT 1 FROM public.reports_blocks rb WHERE (rb.reporting_user_id = p_user_id AND rb.reported_user_id = proposer.id) OR (rb.reporting_user_id = proposer.id AND rb.reported_user_id = p_user_id))
-      AND ST_DWithin(
-          ST_MakePoint(proposer.longitude, proposer.latitude)::geography,
-          ST_MakePoint(v_user_lon, v_user_lat)::geography,
-          20000 -- 20km radius in meters
-      )
-    ORDER BY bd.date_time ASC;
+    -- Calculate streak (simplified - based on recent activity)
+    SELECT COALESCE(current_streak, 0) INTO v_current_streak FROM user_stats WHERE user_id = p_user_id;
+
+    -- Calculate points and experience
+    v_points := (v_swipes * 1) + (v_matches * 10) + (v_messages * 2) + (v_dates * 20) + (v_posts * 5) + (v_comments * 2) + (v_current_streak * 5);
+    v_experience_points := v_points;
+
+    -- Calculate level based on experience points
+    v_level := GREATEST(1, FLOOR(v_experience_points / 1000) + 1);
+
+    -- Insert or update user stats
+    INSERT INTO user_stats (
+        user_id,
+        total_swipes,
+        total_matches,
+        total_messages,
+        total_dates,
+        total_community_posts,
+        total_community_comments,
+        current_streak,
+        longest_streak,
+        points,
+        level,
+        experience_points,
+        updated_at
+    ) VALUES (
+        p_user_id,
+        v_swipes,
+        v_matches,
+        v_messages,
+        v_dates,
+        v_posts,
+        v_comments,
+        v_current_streak,
+        GREATEST(v_current_streak, COALESCE((SELECT longest_streak FROM user_stats WHERE user_id = p_user_id), 0)),
+        v_points,
+        v_level,
+        v_experience_points,
+        now()
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+        total_swipes = EXCLUDED.total_swipes,
+        total_matches = EXCLUDED.total_matches,
+        total_messages = EXCLUDED.total_messages,
+        total_dates = EXCLUDED.total_dates,
+        total_community_posts = EXCLUDED.total_community_posts,
+        total_community_comments = EXCLUDED.total_community_comments,
+        current_streak = EXCLUDED.current_streak,
+        longest_streak = EXCLUDED.longest_streak,
+        points = EXCLUDED.points,
+        level = EXCLUDED.level,
+        experience_points = EXCLUDED.experience_points,
+        updated_at = now();
 END;
 $$;
 
--- New function to get a user's OWN PENDING proposals
-CREATE OR REPLACE FUNCTION public.get_my_proposals(p_user_id uuid)
-RETURNS SETOF public.blind_dates
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    RETURN QUERY
-    SELECT bd.*
-    FROM public.blind_dates bd
-    WHERE bd.requesting_user_id = p_user_id
-      AND bd.requested_user_id IS NULL -- This is what makes it a proposal
-      AND bd.date_time > now()
-    ORDER BY bd.date_time ASC;
-END;
-$$;
+-- =================================================================
+-- TRIGGERS FOR AUTOMATION
+-- =================================================================
 
--- New function to atomically accept a date proposal
-CREATE OR REPLACE FUNCTION public.accept_proposal(p_date_id uuid, p_acceptor_id uuid)
-RETURNS boolean
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_updated_rows int;
+-- Update conversation last message timestamp
+CREATE OR REPLACE FUNCTION update_conversation_last_message()
+RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE public.blind_dates
+    UPDATE conversations
     SET
-        requested_user_id = p_acceptor_id,
-        status = 'accepted'
-    WHERE
-        id = p_date_id
-        AND requested_user_id IS NULL; -- Atomic check to prevent race condition
-    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
-    RETURN v_updated_rows > 0;
+        last_message_at = NEW.created_at,
+        message_count = message_count + 1,
+        updated_at = now()
+    WHERE id = NEW.conversation_id;
+
+    -- Mark user as online when sending message
+    UPDATE profiles
+    SET
+        is_online = true,
+        last_seen = now()
+    WHERE id = NEW.sender_id;
+
+    RETURN NEW;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
--- New secure function for a user to cancel their own proposal
-CREATE OR REPLACE FUNCTION public.cancel_my_proposal(p_date_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+DROP TRIGGER IF EXISTS trigger_update_conversation_last_message ON messages;
+CREATE TRIGGER trigger_update_conversation_last_message
+    AFTER INSERT ON messages
+    FOR EACH ROW EXECUTE FUNCTION update_conversation_last_message();
+
+-- Update community post comment count
+CREATE OR REPLACE FUNCTION update_community_post_comment_count()
+RETURNS TRIGGER AS $$
 BEGIN
-    DELETE FROM public.blind_dates
-    WHERE id = p_date_id
-      AND requesting_user_id = auth.uid()
-      AND requested_user_id IS NULL; -- Can only cancel if it's still a proposal
+    IF TG_OP = 'INSERT' THEN
+        UPDATE community_posts
+        SET
+            comment_count = comment_count + 1,
+            last_activity_at = now(),
+            updated_at = now()
+        WHERE id = NEW.post_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE community_posts
+        SET
+            comment_count = GREATEST(comment_count - 1, 0),
+            updated_at = now()
+        WHERE id = OLD.post_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
--- New function to get a user's dates with their vibecheck status
-CREATE OR REPLACE FUNCTION public.get_my_dates(p_user_id uuid)
-RETURNS TABLE (
-    id uuid,
-    cafe text,
-    meal public.meal_type,
-    date_time timestamptz,
-    status public.blind_date_status,
-    is_receiver boolean,
-    other_user_id uuid,
-    other_user_name text,
-    other_user_profile_pics text[],
-    other_user_college text,
-    other_user_course text,
-    other_user_tags text[],
-    other_user_bio text,
-    other_user_prompts jsonb,
-    other_user_membership public.membership_type,
-    vibe_check_rating public.vibe_rating,
-    vibe_check_tags text[]
-)
-LANGUAGE sql
-AS $$
-SELECT
-    bd.id,
-    bd.cafe,
-    bd.meal::public.meal_type,
-    bd.date_time,
-    bd.status,
-    (bd.requested_user_id = p_user_id) as is_receiver,
-    ou.id as other_user_id,
-    ou.name as other_user_name,
-    ou."profilePics" as other_user_profile_pics,
-    ou.college as other_user_college,
-    ou.course as other_user_course,
-    ou.tags as other_user_tags,
-    ou.bio as other_user_bio,
-    ou.prompts as other_user_prompts,
-    ou.membership as other_user_membership,
-    vc.rating as vibe_check_rating,
-    vc.tags as vibe_check_tags
-FROM
-    public.blind_dates bd
-JOIN
-    public.profiles ou ON ou.id = CASE
-        WHEN bd.requesting_user_id = p_user_id THEN bd.requested_user_id
-        ELSE bd.requesting_user_id
-    END
-LEFT JOIN
-    public.vibe_checks vc ON vc.blind_date_id = bd.id AND vc.user_id = p_user_id
-WHERE
-    (bd.requesting_user_id = p_user_id OR bd.requested_user_id = p_user_id)
-    AND bd.requested_user_id IS NOT NULL
-ORDER BY
-    bd.date_time DESC;
-$$;
+DROP TRIGGER IF EXISTS trigger_update_comment_count ON community_comments;
+CREATE TRIGGER trigger_update_comment_count
+    AFTER INSERT OR DELETE ON community_comments
+    FOR EACH ROW EXECUTE FUNCTION update_community_post_comment_count();
 
-
-CREATE OR REPLACE FUNCTION public.handle_swipe(p_swiper_id uuid, p_swiped_id uuid, p_direction public.swipe_direction)
-RETURNS TABLE(match_created boolean, conversation_id uuid)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE v_match_exists boolean; v_conversation_id uuid;
-BEGIN
-    INSERT INTO public.swipes(swiper_id, swiped_id, direction) VALUES (p_swiper_id, p_swiped_id, p_direction)
-    ON CONFLICT (swiper_id, swiped_id) DO UPDATE SET direction = p_direction;
-    IF p_direction = 'right' THEN
-        SELECT EXISTS (SELECT 1 FROM public.swipes WHERE swiper_id = p_swiped_id AND swiped_id = p_swiper_id AND direction = 'right') INTO v_match_exists;
-        IF v_match_exists THEN
-            INSERT INTO public.conversations(user1_id, user2_id) VALUES (LEAST(p_swiper_id, p_swiped_id), GREATEST(p_swiper_id, p_swiped_id))
-            ON CONFLICT(user1_id, user2_id) DO NOTHING;
-            SELECT c.id INTO v_conversation_id FROM public.conversations c WHERE (c.user1_id = p_swiper_id AND c.user2_id = p_swiped_id) OR (c.user1_id = p_swiped_id AND c.user2_id = p_swiper_id);
-            RETURN QUERY SELECT true, v_conversation_id;
-        ELSE RETURN QUERY SELECT false, null::uuid; END IF;
-    ELSE RETURN QUERY SELECT false, null::uuid; END IF;
-END; $$;
-CREATE OR REPLACE FUNCTION public.get_conversations(p_user_id uuid)
-RETURNS TABLE(id uuid, other_user_id uuid, other_user_name text, other_user_profile_pic text, other_user_membership public.membership_type, last_message_text text, last_message_timestamp timestamptz, last_message_sender_id uuid, unread_count bigint)
-LANGUAGE sql AS $$
-WITH last_messages AS (SELECT conversation_id, text, created_at, sender_id, ROW_NUMBER() OVER(PARTITION BY conversation_id ORDER BY created_at DESC) as rn FROM public.messages)
-SELECT
-    c.id,
-    p.id AS other_user_id,
-    p.name AS other_user_name,
-    p."profilePics"[1] AS other_user_profile_pic,
-    p.membership AS other_user_membership,
-    lm.text AS last_message_text,
-    lm.created_at AS last_message_timestamp,
-    lm.sender_id AS last_message_sender_id,
-    (SELECT count(*) FROM public.messages m WHERE m.conversation_id = c.id AND m.sender_id != p_user_id AND m.is_read = false) as unread_count
-FROM public.conversations c JOIN public.profiles p ON (p.id = c.user1_id OR p.id = c.user2_id) AND p.id <> p_user_id
-LEFT JOIN last_messages lm ON lm.conversation_id = c.id AND lm.rn = 1 WHERE c.user1_id = p_user_id OR c.user2_id = p_user_id ORDER BY lm.created_at DESC NULLS LAST; $$;
-CREATE OR REPLACE FUNCTION public.get_events_with_rsvp(p_user_id uuid)
-RETURNS TABLE (id uuid, created_at timestamptz, name text, date text, college text, "imageUrl" text, rsvp_status public.rsvp_status)
-LANGUAGE sql AS $$
-SELECT e.id, e.created_at, e.name, e.date, e.college, e."imageUrl", er.status as rsvp_status
-FROM public.events e LEFT JOIN public.event_rsvps er ON e.id = er.event_id AND er.user_id = p_user_id ORDER BY e.date; $$;
-CREATE OR REPLACE FUNCTION public.get_likers(p_user_id uuid)
-RETURNS SETOF public.profiles
-LANGUAGE sql AS $$
-    SELECT p.*
-    FROM public.profiles p
-    JOIN public.swipes s ON p.id = s.swiper_id
-    WHERE s.swiped_id = p_user_id AND s.direction = 'right'
-    AND NOT EXISTS (SELECT 1 FROM public.swipes s2 WHERE s2.swiper_id = p_user_id AND s2.swiped_id = p.id);
-$$;
-CREATE OR REPLACE FUNCTION public.get_swipe_candidates(p_user_id uuid, p_user_gender public.gender_enum)
-RETURNS SETOF public.profiles
-LANGUAGE sql AS $$
-    SELECT p.*
-    FROM public.profiles p
-    WHERE p.id <> p_user_id
-        AND p.gender = CASE WHEN p_user_gender = 'Male' THEN 'Female' WHEN p_user_gender = 'Female' THEN 'Male' WHEN p_user_gender = 'Other' THEN p.gender END::public.gender_enum
-        AND (p.privacy_settings->>'showInSwipe')::boolean IS DISTINCT FROM false
-        AND NOT EXISTS (SELECT 1 FROM public.swipes s WHERE s.swiper_id = p_user_id AND s.swiped_id = p.id)
-        AND NOT EXISTS (SELECT 1 FROM public.reports_blocks rb WHERE rb.reporting_user_id = p_user_id AND rb.reported_user_id = p.id AND rb.type = 'block')
-        AND NOT EXISTS (SELECT 1 FROM public.reports_blocks rb WHERE rb.reporting_user_id = p.id AND rb.reported_user_id = p_user_id AND rb.type = 'block')
-    ORDER BY random() LIMIT 20;
-$$;
-CREATE OR REPLACE FUNCTION public.book_trip_and_decrement_slot(p_trip_id uuid, p_user_id uuid)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE current_slots integer; already_booked boolean;
-BEGIN
-  SELECT slots INTO current_slots FROM public.trips WHERE id = p_trip_id FOR UPDATE;
-  SELECT EXISTS (SELECT 1 FROM public.trip_bookings WHERE trip_id = p_trip_id AND user_id = p_user_id) INTO already_booked;
-  IF already_booked THEN RETURN true; END IF;
-  IF current_slots > 0 THEN
-    INSERT INTO public.trip_bookings(trip_id, user_id) VALUES (p_trip_id, p_user_id);
-    UPDATE public.trips SET slots = slots - 1 WHERE id = p_trip_id;
-    RETURN true;
-  ELSE RETURN false; END IF;
-END; $$;
-
--- New function for securely deleting a user's account
-CREATE OR REPLACE FUNCTION public.delete_user_account()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-    -- This function will trigger the on_auth_user_deleted trigger
-    -- which handles deleting the profile and storage files.
-    DELETE FROM auth.users WHERE id = auth.uid();
-END;
-$$;
-
-
--- 4. TRIGGERS & TRIGGER FUNCTIONS
-CREATE OR REPLACE FUNCTION public.handle_vibe_check_match()
+-- Handle vibe check matching
+CREATE OR REPLACE FUNCTION handle_vibe_check_match()
 RETURNS TRIGGER AS $$
 DECLARE
     v_date_id uuid;
@@ -578,165 +1102,394 @@ DECLARE
     v_conversation_id uuid;
 BEGIN
     v_date_id := NEW.blind_date_id;
-    SELECT count(*) INTO v_feedback_count FROM public.vibe_checks WHERE blind_date_id = v_date_id;
+
+    -- Count feedback safely
+    SELECT count(*) INTO v_feedback_count
+    FROM vibe_checks
+    WHERE blind_date_id = v_date_id;
 
     IF v_feedback_count = 2 THEN
-        UPDATE public.blind_dates SET status = 'feedback_submitted' WHERE id = v_date_id;
-        SELECT count(*) INTO v_good_vibes_count FROM public.vibe_checks WHERE blind_date_id = v_date_id AND rating = 'good';
+        -- Update date status
+        UPDATE blind_dates
+        SET
+            status = 'feedback_submitted',
+            feedback_submitted_at = now()
+        WHERE id = v_date_id;
+
+        -- Count good vibes
+        SELECT count(*) INTO v_good_vibes_count
+        FROM vibe_checks
+        WHERE blind_date_id = v_date_id AND overall_rating = 'good';
 
         IF v_good_vibes_count = 2 THEN
-            -- Get user details
-            SELECT bd.requesting_user_id, bd.requested_user_id, p1.name, p2.name
+            -- Get user details safely
+            SELECT
+                bd.requesting_user_id,
+                bd.requested_user_id,
+                COALESCE(p1.name, 'User'),
+                COALESCE(p2.name, 'User')
             INTO v_user1_id, v_user2_id, v_user1_name, v_user2_name
-            FROM public.blind_dates bd
-            JOIN public.profiles p1 ON bd.requesting_user_id = p1.id
-            JOIN public.profiles p2 ON bd.requested_user_id = p2.id
+            FROM blind_dates bd
+            JOIN profiles p1 ON bd.requesting_user_id = p1.id
+            JOIN profiles p2 ON bd.requested_user_id = p2.id
             WHERE bd.id = v_date_id;
 
-            -- Create the match by swiping right for both users
-            PERFORM public.handle_swipe(v_user1_id, v_user2_id, 'right');
-            PERFORM public.handle_swipe(v_user2_id, v_user1_id, 'right');
+            IF v_user1_id IS NOT NULL AND v_user2_id IS NOT NULL THEN
+                -- Create the match by swiping right for both users
+                PERFORM handle_swipe(v_user1_id, v_user2_id, 'right');
+                PERFORM handle_swipe(v_user2_id, v_user1_id, 'right');
 
-            -- CRITICAL FIX: Find the conversation_id that was just created by the swipes
-            SELECT id INTO v_conversation_id
-            FROM public.conversations
-            WHERE (user1_id = v_user1_id AND user2_id = v_user2_id)
-               OR (user1_id = v_user2_id AND user2_id = v_user1_id);
+                -- Find the conversation
+                SELECT id INTO v_conversation_id
+                FROM conversations
+                WHERE (user1_id = v_user1_id AND user2_id = v_user2_id)
+                   OR (user1_id = v_user2_id AND user2_id = v_user1_id);
 
-            -- Create notifications with the CORRECT conversation_id
-            IF v_conversation_id IS NOT NULL THEN
-                INSERT INTO public.notifications(user_id, type, message, source_entity_id) VALUES (v_user1_id, 'vibe_check_match', 'Your VibeCheck with ' || v_user2_name || ' was a success! You can now chat.', v_conversation_id);
-                INSERT INTO public.notifications(user_id, type, message, source_entity_id) VALUES (v_user2_id, 'vibe_check_match', 'Your VibeCheck with ' || v_user1_name || ' was a success! You can now chat.', v_conversation_id);
+                -- Create notifications
+                IF v_conversation_id IS NOT NULL THEN
+                    INSERT INTO notifications(user_id, type, title, message, data)
+                    VALUES
+                        (v_user1_id, 'vibe_check_match', 'Amazing Connection!', 'Your VibeCheck with ' || v_user2_name || ' was a success! You can now chat.', jsonb_build_object('conversation_id', v_conversation_id)),
+                        (v_user2_id, 'vibe_check_match', 'Amazing Connection!', 'Your VibeCheck with ' || v_user1_name || ' was a success! You can now chat.', jsonb_build_object('conversation_id', v_conversation_id));
+                END IF;
             END IF;
         END IF;
     END IF;
+
+    RETURN NEW;
+EXCEPTION WHEN others THEN
+    -- Log error but don't fail the transaction
+    RAISE WARNING 'Error in handle_vibe_check_match: %', SQLERRM;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS trigger_vibe_check_match ON vibe_checks;
+CREATE TRIGGER trigger_vibe_check_match
+    AFTER INSERT ON vibe_checks
+    FOR EACH ROW EXECUTE FUNCTION handle_vibe_check_match();
 
-CREATE OR REPLACE FUNCTION public.create_new_match_notification()
+-- Update user stats trigger
+CREATE OR REPLACE FUNCTION trigger_update_user_stats()
 RETURNS TRIGGER AS $$
-DECLARE user1_name text; user2_name text;
 BEGIN
-    SELECT name INTO user1_name FROM public.profiles WHERE id = NEW.user1_id;
-    SELECT name INTO user2_name FROM public.profiles WHERE id = NEW.user2_id;
-    INSERT INTO public.notifications(user_id, type, message, source_entity_id) VALUES (NEW.user1_id, 'new_match', 'You matched with ' || user2_name || '!', NEW.id);
-    INSERT INTO public.notifications(user_id, type, message, source_entity_id) VALUES (NEW.user2_id, 'new_match', 'You matched with ' || user1_name || '!', NEW.id);
-    RETURN NEW;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+    -- Update stats for affected users
+    IF TG_TABLE_NAME = 'swipes' THEN
+        PERFORM update_user_stats(NEW.swiper_id);
+        RETURN NEW;
+    ELSIF TG_TABLE_NAME = 'conversations' THEN
+        PERFORM update_user_stats(NEW.user1_id);
+        PERFORM update_user_stats(NEW.user2_id);
+        RETURN NEW;
+    ELSIF TG_TABLE_NAME = 'messages' THEN
+        PERFORM update_user_stats(NEW.sender_id);
+        RETURN NEW;
+    ELSIF TG_TABLE_NAME = 'blind_dates' THEN
+        IF NEW.requested_user_id IS NOT NULL THEN
+            PERFORM update_user_stats(NEW.requesting_user_id);
+            PERFORM update_user_stats(NEW.requested_user_id);
+        END IF;
+        RETURN NEW;
+    ELSIF TG_TABLE_NAME = 'community_posts' THEN
+        PERFORM update_user_stats(NEW.author_id);
+        RETURN NEW;
+    ELSIF TG_TABLE_NAME = 'community_comments' THEN
+        PERFORM update_user_stats(NEW.author_id);
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION public.create_new_message_notification()
-RETURNS TRIGGER AS $$
-DECLARE recipient_id uuid; sender_name text;
-BEGIN
-    SELECT CASE WHEN user1_id = NEW.sender_id THEN user2_id ELSE user1_id END INTO recipient_id FROM public.conversations WHERE id = NEW.conversation_id;
-    SELECT name INTO sender_name FROM public.profiles WHERE id = NEW.sender_id;
-    INSERT INTO public.notifications(user_id, type, message, source_entity_id) VALUES(recipient_id, 'new_message', 'New message from ' || sender_name, NEW.conversation_id);
-    RETURN NEW;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Apply triggers to relevant tables
+DROP TRIGGER IF EXISTS trigger_user_stats_swipes ON swipes;
+CREATE TRIGGER trigger_user_stats_swipes AFTER INSERT ON swipes FOR EACH ROW EXECUTE FUNCTION trigger_update_user_stats();
 
-CREATE OR REPLACE FUNCTION public.create_blind_date_notification()
-RETURNS TRIGGER AS $$
-DECLARE requesting_user_name text; requested_user_name text;
-BEGIN
-    -- This trigger now ONLY handles ACCEPTED dates. Proposal notifications are handled by the propose_blind_date function.
-    IF (TG_OP = 'UPDATE' AND OLD.status = 'pending' AND NEW.status = 'accepted' AND NEW.requested_user_id IS NOT NULL) THEN
-        SELECT name INTO requested_user_name FROM public.profiles WHERE id = NEW.requested_user_id;
-        INSERT INTO public.notifications(user_id, type, message, source_entity_id) VALUES(NEW.requesting_user_id, 'blind_date_accepted', 'Your blind date with ' || requested_user_name || ' was accepted!', NEW.id);
-    END IF; RETURN NEW;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+DROP TRIGGER IF EXISTS trigger_user_stats_conversations ON conversations;
+CREATE TRIGGER trigger_user_stats_conversations AFTER INSERT ON conversations FOR EACH ROW EXECUTE FUNCTION trigger_update_user_stats();
 
--- This function cleans up a user's data after their auth.users entry is deleted.
-CREATE OR REPLACE FUNCTION public.handle_delete_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  -- Delete the user's profile from the public profiles table
-  DELETE FROM public.profiles WHERE id = old.id;
-  
-  -- Delete all of the user's files from storage
-  -- Note: This requires the service_role key, which this function has due to "SECURITY DEFINER"
-  DELETE FROM storage.objects WHERE bucket_id = 'profile-pics' AND owner = old.id;
-  
-  RETURN old;
-END; $$;
+DROP TRIGGER IF EXISTS trigger_user_stats_messages ON messages;
+CREATE TRIGGER trigger_user_stats_messages AFTER INSERT ON messages FOR EACH ROW EXECUTE FUNCTION trigger_update_user_stats();
 
-DROP TRIGGER IF EXISTS on_vibe_check_insert ON public.vibe_checks;
-CREATE TRIGGER on_vibe_check_insert AFTER INSERT ON public.vibe_checks FOR EACH ROW EXECUTE FUNCTION public.handle_vibe_check_match();
-DROP TRIGGER IF EXISTS on_new_match ON public.conversations;
-CREATE TRIGGER on_new_match AFTER INSERT ON public.conversations FOR EACH ROW EXECUTE FUNCTION public.create_new_match_notification();
-DROP TRIGGER IF EXISTS on_new_message ON public.messages;
-CREATE TRIGGER on_new_message AFTER INSERT ON public.messages FOR EACH ROW EXECUTE FUNCTION public.create_new_message_notification();
-DROP TRIGGER IF EXISTS on_blind_date_change ON public.blind_dates;
-CREATE TRIGGER on_blind_date_change AFTER INSERT OR UPDATE ON public.blind_dates FOR EACH ROW EXECUTE FUNCTION public.create_blind_date_notification();
-DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
-CREATE TRIGGER on_auth_user_deleted AFTER DELETE ON auth.users FOR EACH ROW EXECUTE PROCEDURE public.handle_delete_user();
+DROP TRIGGER IF EXISTS trigger_user_stats_dates ON blind_dates;
+CREATE TRIGGER trigger_user_stats_dates AFTER INSERT OR UPDATE ON blind_dates FOR EACH ROW EXECUTE FUNCTION trigger_update_user_stats();
 
--- 5. ROW LEVEL SECURITY (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.swipes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.event_rsvps ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trip_bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.blind_dates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reports_blocks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.vibe_checks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.profile_boosts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.rizz_scores ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ads ENABLE ROW LEVEL SECURITY;
+-- =================================================================
+-- ROW LEVEL SECURITY POLICIES
+-- =================================================================
 
-DROP POLICY IF EXISTS "Allow all access for own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Allow authenticated users to read profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Allow management of own swipes" ON public.swipes;
-DROP POLICY IF EXISTS "Allow reading of received swipes" ON public.swipes;
-DROP POLICY IF EXISTS "Enable read access for involved users" ON public.conversations;
-DROP POLICY IF EXISTS "Enable read/write access for involved users" ON public.messages;
-DROP POLICY IF EXISTS "Enable insert for involved users" ON public.messages;
-DROP POLICY IF EXISTS "Allow authenticated users to read all events and trips" ON public.events;
-DROP POLICY IF EXISTS "Allow authenticated users to read all events and trips" ON public.trips;
-DROP POLICY IF EXISTS "Enable all actions for own RSVPs" ON public.event_rsvps;
-DROP POLICY IF EXISTS "Enable all actions for own trip bookings" ON public.trip_bookings;
-DROP POLICY IF EXISTS "Enable create/delete for own proposals/dates" ON public.blind_dates;
-DROP POLICY IF EXISTS "Enable authenticated read access" ON public.blind_dates;
-DROP POLICY IF EXISTS "Allow authenticated users to read comments" ON public.comments;
-DROP POLICY IF EXISTS "Enable insert for own comments" ON public.comments;
-DROP POLICY IF EXISTS "Enable delete for own comments" ON public.comments;
-DROP POLICY IF EXISTS "Enable all actions for own reports and blocks" ON public.reports_blocks;
-DROP POLICY IF EXISTS "Enable all actions for own vibe checks" ON public.vibe_checks;
-DROP POLICY IF EXISTS "Enable all actions for own profile boosts" ON public.profile_boosts;
-DROP POLICY IF EXISTS "Enable all actions for own rizz scores" ON public.rizz_scores;
-DROP POLICY IF EXISTS "Enable all actions for own notifications" ON public.notifications;
-DROP POLICY IF EXISTS "Enable all actions for own payments" ON public.payments;
-DROP POLICY IF EXISTS "Allow authenticated users to read ads" ON public.ads;
+-- Enable RLS on all tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE swipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE blind_dates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vibe_checks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profile_boosts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_rsvps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trip_bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports_blocks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow authenticated users to read profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow all access for own profile" ON public.profiles FOR ALL USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
-CREATE POLICY "Allow management of own swipes" ON public.swipes FOR ALL USING (auth.uid() = swiper_id) WITH CHECK (auth.uid() = swiper_id);
-CREATE POLICY "Allow reading of received swipes" ON public.swipes FOR SELECT USING (auth.uid() = swiped_id);
-CREATE POLICY "Enable read access for involved users" ON public.conversations FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
-CREATE POLICY "Enable read/write access for involved users" ON public.messages FOR ALL USING (conversation_id IN (SELECT c.id FROM public.conversations c WHERE auth.uid() = c.user1_id OR auth.uid() = c.user2_id));
-CREATE POLICY "Enable insert for involved users" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id AND conversation_id IN (SELECT c.id FROM public.conversations c WHERE auth.uid() = c.user1_id OR auth.uid() = c.user2_id));
-CREATE POLICY "Allow authenticated users to read comments" ON public.comments FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Enable insert for own comments" ON public.comments FOR INSERT WITH CHECK (auth.uid() = author_id);
-CREATE POLICY "Enable delete for own comments" ON public.comments FOR DELETE USING (auth.uid() = author_id);
-CREATE POLICY "Allow authenticated users to read all events and trips" ON public.events FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated users to read all events and trips" ON public.trips FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Enable all actions for own RSVPs" ON public.event_rsvps FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Enable all actions for own trip bookings" ON public.trip_bookings FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Enable create/delete for own proposals/dates" ON public.blind_dates FOR ALL USING (auth.uid() = requesting_user_id OR auth.uid() = requested_user_id) WITH CHECK (auth.uid() = requesting_user_id);
-CREATE POLICY "Enable authenticated read access" ON public.blind_dates FOR SELECT USING (true);
-CREATE POLICY "Enable all actions for own reports and blocks" ON public.reports_blocks FOR ALL USING (auth.uid() = reporting_user_id) WITH CHECK (auth.uid() = reporting_user_id);
-CREATE POLICY "Enable all actions for own vibe checks" ON public.vibe_checks FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Enable all actions for own profile boosts" ON public.profile_boosts FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Enable all actions for own rizz scores" ON public.rizz_scores FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Enable all actions for own notifications" ON public.notifications FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Enable all actions for own payments" ON public.payments FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Allow authenticated users to read ads" ON public.ads FOR SELECT TO authenticated USING (true);
+-- =================================================================
+-- ROW LEVEL SECURITY POLICIES
+-- =================================================================
+
+-- Profiles policies
+CREATE POLICY "Users can view all profiles for swiping" ON profiles
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can update their own profile" ON profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile" ON profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Swipes policies
+CREATE POLICY "Users can view their own swipes" ON swipes
+    FOR SELECT USING (auth.uid() = swiper_id);
+
+CREATE POLICY "Users can insert their own swipes" ON swipes
+    FOR INSERT WITH CHECK (auth.uid() = swiper_id);
+
+-- Conversations policies
+CREATE POLICY "Users can view conversations they're part of" ON conversations
+    FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+CREATE POLICY "Users can insert conversations they're part of" ON conversations
+    FOR INSERT WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+-- Messages policies
+CREATE POLICY "Users can view messages in their conversations" ON messages
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM conversations c
+            WHERE c.id = messages.conversation_id
+            AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+        )
+    );
+
+CREATE POLICY "Users can insert messages in their conversations" ON messages
+    FOR INSERT WITH CHECK (
+        sender_id = auth.uid() AND
+        EXISTS (
+            SELECT 1 FROM conversations c
+            WHERE c.id = messages.conversation_id
+            AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+        )
+    );
+
+-- Blind dates policies
+CREATE POLICY "Users can view blind dates they're involved in" ON blind_dates
+    FOR SELECT USING (auth.uid() = requesting_user_id OR auth.uid() = requested_user_id);
+
+CREATE POLICY "Users can insert their own blind date proposals" ON blind_dates
+    FOR INSERT WITH CHECK (auth.uid() = requesting_user_id);
+
+CREATE POLICY "Users can update blind dates they're involved in" ON blind_dates
+    FOR UPDATE USING (auth.uid() = requesting_user_id OR auth.uid() = requested_user_id);
+
+-- Vibe checks policies
+CREATE POLICY "Users can view vibe checks for dates they're involved in" ON vibe_checks
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM blind_dates bd
+            WHERE bd.id = vibe_checks.blind_date_id
+            AND (bd.requesting_user_id = auth.uid() OR bd.requested_user_id = auth.uid())
+        )
+    );
+
+CREATE POLICY "Users can insert vibe checks for dates they're involved in" ON vibe_checks
+    FOR INSERT WITH CHECK (
+        user_id = auth.uid() AND
+        EXISTS (
+            SELECT 1 FROM blind_dates bd
+            WHERE bd.id = vibe_checks.blind_date_id
+            AND (bd.requesting_user_id = auth.uid() OR bd.requested_user_id = auth.uid())
+        )
+    );
+
+-- Community posts policies
+CREATE POLICY "Users can view all community posts" ON community_posts
+    FOR SELECT USING (NOT is_deleted OR is_deleted = false);
+
+CREATE POLICY "Users can insert their own posts" ON community_posts
+    FOR INSERT WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Users can update their own posts" ON community_posts
+    FOR UPDATE USING (auth.uid() = author_id);
+
+-- Community comments policies
+CREATE POLICY "Users can view all comments on non-deleted posts" ON community_comments
+    FOR SELECT USING (
+        NOT is_deleted AND
+        EXISTS (
+            SELECT 1 FROM community_posts cp
+            WHERE cp.id = community_comments.post_id
+            AND (NOT cp.is_deleted OR cp.is_deleted = false)
+        )
+    );
+
+CREATE POLICY "Users can insert their own comments" ON community_comments
+    FOR INSERT WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Users can update their own comments" ON community_comments
+    FOR UPDATE USING (auth.uid() = author_id);
+
+-- Community votes policies
+CREATE POLICY "Users can view all votes" ON community_votes
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their own votes" ON community_votes
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own votes" ON community_votes
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- User stats policies
+CREATE POLICY "Users can view their own stats" ON user_stats
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own stats" ON user_stats
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own stats" ON user_stats
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Achievements policies
+CREATE POLICY "Users can view their own achievements" ON achievements
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert achievements for themselves" ON achievements
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Daily challenges policies
+CREATE POLICY "Users can view their own challenges" ON daily_challenges
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own challenges" ON daily_challenges
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Rizz scores policies
+CREATE POLICY "Users can view rizz scores in their conversations" ON rizz_scores
+    FOR SELECT USING (
+        user_id = auth.uid() OR
+        EXISTS (
+            SELECT 1 FROM conversations c
+            WHERE c.id = rizz_scores.conversation_id
+            AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+        )
+    );
+
+CREATE POLICY "Users can insert their own rizz scores" ON rizz_scores
+    FOR INSERT WITH CHECK (user_id = auth.uid());
+
+-- Profile boosts policies
+CREATE POLICY "Users can view their own boosts" ON profile_boosts
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own boosts" ON profile_boosts
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own boosts" ON profile_boosts
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Subscriptions policies
+CREATE POLICY "Users can view their own subscriptions" ON subscriptions
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own subscriptions" ON subscriptions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own subscriptions" ON subscriptions
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Payments policies
+CREATE POLICY "Users can view their own payments" ON payments
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert payments for themselves" ON payments
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Ads policies (admin only for management, users can view)
+CREATE POLICY "Users can view active ads" ON ads
+    FOR SELECT USING (is_active = true);
+
+-- Events policies
+CREATE POLICY "Users can view public events" ON events
+    FOR SELECT USING (is_public = true OR organizer_id = auth.uid());
+
+CREATE POLICY "Users can insert their own events" ON events
+    FOR INSERT WITH CHECK (auth.uid() = organizer_id);
+
+CREATE POLICY "Users can update their own events" ON events
+    FOR UPDATE USING (auth.uid() = organizer_id);
+
+-- Event RSVPs policies
+CREATE POLICY "Users can view RSVPs for events they can see" ON event_rsvps
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM events e
+            WHERE e.id = event_rsvps.event_id
+            AND (e.is_public = true OR e.organizer_id = auth.uid())
+        )
+    );
+
+CREATE POLICY "Users can manage their own RSVPs" ON event_rsvps
+    FOR ALL USING (auth.uid() = user_id);
+
+-- Trips policies
+CREATE POLICY "Users can view all trips" ON trips
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their own trips" ON trips
+    FOR INSERT WITH CHECK (auth.uid() = organizer_id);
+
+CREATE POLICY "Users can update their own trips" ON trips
+    FOR UPDATE USING (auth.uid() = organizer_id);
+
+-- Trip bookings policies
+CREATE POLICY "Users can view bookings for trips they organize" ON trip_bookings
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM trips t
+            WHERE t.id = trip_bookings.trip_id
+            AND t.organizer_id = auth.uid()
+        ) OR user_id = auth.uid()
+    );
+
+CREATE POLICY "Users can manage their own bookings" ON trip_bookings
+    FOR ALL USING (user_id = auth.uid());
+
+-- Reports and blocks policies
+CREATE POLICY "Users can view their own reports" ON reports_blocks
+    FOR SELECT USING (auth.uid() = reporter_id);
+
+CREATE POLICY "Users can insert their own reports" ON reports_blocks
+    FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+
+-- Admin actions policies (admin only)
+CREATE POLICY "Only admins can view admin actions" ON admin_actions
+    FOR SELECT USING (false); -- Placeholder - implement proper admin check
+
+-- Notifications policies
+CREATE POLICY "Users can view their own notifications" ON notifications
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own notifications" ON notifications
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Push tokens policies
+CREATE POLICY "Users can manage their own push tokens" ON push_tokens
+    FOR ALL USING (auth.uid() = user_id);

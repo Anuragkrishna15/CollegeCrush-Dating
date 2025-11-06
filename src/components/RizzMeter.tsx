@@ -20,6 +20,9 @@ interface RizzAnalysis {
         engagement: number;
         creativity: number;
         confidence: number;
+        humor: number;
+        empathy: number;
+        consistency: number;
     };
 }
 
@@ -63,7 +66,10 @@ const RizzMeter: React.FC<RizzMeterProps> = ({ messages, currentUserId }) => {
             messageLength: 0,
             engagement: 0,
             creativity: 0,
-            confidence: 0
+            confidence: 0,
+            humor: 0,
+            empathy: 0,
+            consistency: 0
         };
 
         // 1. Response Time Score (how quickly you respond)
@@ -157,11 +163,51 @@ const RizzMeter: React.FC<RizzMeterProps> = ({ messages, currentUserId }) => {
         const avgSentenceLength = myMessages.map(m => m.text.split(/[.!?]/).length).reduce((a, b) => a + b, 0) / myMessages.length;
         const usesCapitals = myMessages.some(m => /[A-Z]/.test(m.text));
         const usesPunctuation = myMessages.some(m => /[.!?,]/.test(m.text));
-        
+
         metrics.confidence = Math.min(15,
             (avgSentenceLength > 1 ? 5 : 3) +
             (usesCapitals ? 5 : 2) +
             (usesPunctuation ? 5 : 2)
+        );
+
+        // 6. Humor Score (NEW)
+        const laughEmojis = ['😂', '🤣', '😆', '😅', '🙈', '😜', '🤪'];
+        const hasLaughEmojis = myMessages.some(m => laughEmojis.some(emoji => m.text.includes(emoji)));
+        const hasJokeWords = myMessages.some(m => /\b(joke|lmao|lol|haha|funny|hilarious)\b/i.test(m.text));
+        const hasQuestionExclamation = myMessages.some(m => m.text.includes('?!') || m.text.includes('!?'));
+        const hasSarcasmIndicators = myMessages.some(m => m.text.includes('🙄') || m.text.includes('😏'));
+
+        metrics.humor = Math.min(10,
+            (hasLaughEmojis ? 3 : 0) +
+            (hasJokeWords ? 3 : 0) +
+            (hasQuestionExclamation ? 2 : 0) +
+            (hasSarcasmIndicators ? 2 : 0)
+        );
+
+        // 7. Empathy Score (NEW)
+        const empathyWords = /\b(sorry|understand|feel|hard|difficult|tough|sorry to hear|that sucks|awful|terrible)\b/gi;
+        const hasEmpathyWords = myMessages.some(m => empathyWords.test(m.text));
+        const hasComfortEmojis = myMessages.some(m => ['🤗', '💕', '❤️', '💙', '💜', '🤝', '🙏'].some(emoji => m.text.includes(emoji)));
+        const asksAboutFeelings = myMessages.some(m => /\b(how are you|are you okay|feeling|emotion|stress)\b/gi.test(m.text));
+
+        metrics.empathy = Math.min(10,
+            (hasEmpathyWords ? 4 : 0) +
+            (hasComfortEmojis ? 3 : 0) +
+            (asksAboutFeelings ? 3 : 0)
+        );
+
+        // 8. Consistency Score (NEW)
+        const messageFrequency = myMessages.length / Math.max(theirMessages.length, 1);
+        // Simple time variance calculation
+        const messageTimes = myMessages.map(m => new Date(m.created_at).getTime());
+        const avgTime = messageTimes.reduce((a, b) => a + b, 0) / messageTimes.length;
+        const timeVariance = messageTimes.reduce((sum, time) => sum + Math.pow(time - avgTime, 2), 0) / messageTimes.length;
+        const consistentLength = Math.abs(avgMessageLength - 50) < 30; // Messages around 50 chars
+
+        metrics.consistency = Math.min(10,
+            (messageFrequency >= 0.5 && messageFrequency <= 2 ? 4 : 2) +
+            (timeVariance < 3600000 ? 3 : 1) + // Less than 1 hour variance
+            (consistentLength ? 3 : 1)
         );
 
         // Calculate total score
@@ -341,9 +387,57 @@ const RizzMeter: React.FC<RizzMeterProps> = ({ messages, currentUserId }) => {
                             <span>{metrics.confidence}/15</span>
                         </div>
                         <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
-                            <div 
+                            <div
                                 className={`h-full ${getMetricColor(metrics.confidence, 15)} transition-all duration-500`}
                                 style={{ width: `${(metrics.confidence / 15) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-lg">😄</span>
+                    <div className="flex-1">
+                        <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                            <span>Humor</span>
+                            <span>{metrics.humor}/10</span>
+                        </div>
+                        <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full ${getMetricColor(metrics.humor, 10)} transition-all duration-500`}
+                                style={{ width: `${(metrics.humor / 10) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-lg">💝</span>
+                    <div className="flex-1">
+                        <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                            <span>Empathy</span>
+                            <span>{metrics.empathy}/10</span>
+                        </div>
+                        <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full ${getMetricColor(metrics.empathy, 10)} transition-all duration-500`}
+                                style={{ width: `${(metrics.empathy / 10) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-lg">📊</span>
+                    <div className="flex-1">
+                        <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                            <span>Consistency</span>
+                            <span>{metrics.consistency}/10</span>
+                        </div>
+                        <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full ${getMetricColor(metrics.consistency, 10)} transition-all duration-500`}
+                                style={{ width: `${(metrics.consistency / 10) * 100}%` }}
                             />
                         </div>
                     </div>
@@ -359,7 +453,23 @@ const RizzMeter: React.FC<RizzMeterProps> = ({ messages, currentUserId }) => {
                     {metrics.engagement < 15 && <li>• Keep the conversation balanced, don't dominate!</li>}
                     {metrics.creativity < 10 && <li>• Mix it up! Use questions, emojis, and show personality</li>}
                     {metrics.confidence < 10 && <li>• Be more confident! Use proper grammar and punctuation</li>}
+                    {metrics.humor < 5 && <li>• Add some humor! Try jokes, emojis, or playful language</li>}
+                    {metrics.empathy < 5 && <li>• Show empathy! Ask about their feelings and be supportive</li>}
+                    {metrics.consistency < 5 && <li>• Be consistent! Maintain similar message length and timing</li>}
                 </ul>
+            </div>
+
+            {/* Trend Analysis */}
+            <div className="mt-4 p-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-blue-500/20">
+                <p className="text-xs text-blue-300 font-semibold mb-2 flex items-center gap-1">
+                    <span className="text-sm">📈</span>
+                    Trend Analysis
+                </p>
+                <p className="text-xs text-zinc-400">
+                    {score > 70 ? "Your rizz is improving! Keep up the great work." :
+                     score > 50 ? "You're on the right track. Focus on consistency and empathy." :
+                     "Room for growth! Try being more engaging and confident in your messages."}
+                </p>
             </div>
         </MotionDiv>
     );
