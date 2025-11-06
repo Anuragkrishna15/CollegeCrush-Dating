@@ -1,6 +1,7 @@
 import { supabase } from './supabase.ts';
 import { Profile, Trip, CollegeEvent, BlindDate, MembershipType, ProfileOnboardingData, Comment, VibeCheck, Conversation, Message, BasicProfile, DbProfile, User, AppNotification, Prompt, BlindDateProposal, Ad, MyBlindDateProposal, NotificationPreferences, PrivacySettings } from '../types/types.ts';
 import { Database, Json } from './database.types.ts';
+import { uploadProfilePicture as uploadProfilePicUtil, uploadCommunityMedia } from '../utils/storage.ts';
 
 // Define types for complex queries and RPC responses for better type safety.
 type HandleSwipeResponse = Database['public']['Functions']['handle_swipe']['Returns'][number];
@@ -67,7 +68,7 @@ export const getProfile = async (userId: string): Promise<User | null> => {
         age,
         comments,
         boost_end_time: boostEndTime,
-        profilePics: profileData.profilePics || [],
+        profilePics: profileData.profile_pics || [],
         prompts: (profileData.prompts as unknown as Prompt[] | null) || [],
         notification_preferences: (profileData.notification_preferences as unknown as NotificationPreferences) || { matches: true, messages: true, events: false },
         privacy_settings: (profileData.privacy_settings as unknown as PrivacySettings) || { showInSwipe: true },
@@ -77,16 +78,8 @@ export const getProfile = async (userId: string): Promise<User | null> => {
 };
 
 export const createProfile = async (userId: string, email: string, profileData: ProfileOnboardingData, profilePicFile: File): Promise<User> => {
-    const fileExt = profilePicFile.name.split('.').pop();
-    const filePath = `${userId}/${Date.now()}.${fileExt}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('profile-pics')
-        .upload(filePath, profilePicFile);
-
-    if (uploadError) throw new Error(`Storage Error: ${uploadError.message}`);
-    if (!uploadData) throw new Error('File upload failed.');
-
-    const { data: urlData } = supabase.storage.from('profile-pics').getPublicUrl(uploadData.path);
+    // Upload profile picture using the storage utility
+    const uploadResult = await uploadProfilePicUtil(profilePicFile, userId);
 
     const newProfileData: Database['public']['Tables']['profiles']['Insert'] = {
         id: userId,
@@ -99,7 +92,7 @@ export const createProfile = async (userId: string, email: string, profileData: 
         tags: profileData.tags,
         prompts: profileData.prompts as unknown as Json,
         college: email.split('@')[1],
-        profilePics: [urlData.publicUrl],
+        profile_pics: [uploadResult.url],
         membership: MembershipType.Free,
     };
 
@@ -147,19 +140,8 @@ export const updateUserLocation = async (latitude: number, longitude: number) =>
 
 
 export const uploadProfilePicture = async (userId: string, file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${userId}/${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-        .from('profile-pics')
-        .upload(filePath, file);
-
-    if (uploadError) {
-        throw new Error(`Storage Error: ${uploadError.message}`);
-    }
-
-    const { data } = supabase.storage.from('profile-pics').getPublicUrl(filePath);
-    return data.publicUrl;
+    const uploadResult = await uploadProfilePicUtil(file, userId);
+    return uploadResult.url;
 };
 
 export const deleteAccount = async () => {
