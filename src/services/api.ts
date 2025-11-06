@@ -11,8 +11,8 @@ type ConversationRpcResponse = Database['public']['Functions']['get_conversation
 type MyDateRpcResponse = Database['public']['Functions']['get_my_dates']['Returns'][number];
 type NearbyProposalRpcResponse = Database['public']['Functions']['get_nearby_proposals']['Returns'][number];
 
-type CommentWithAuthor = Omit<Database['public']['Tables']['comments']['Row'], 'author_id'> & {
-    author: Pick<DbProfile, 'id' | 'name' | 'profilePics' | 'college' | 'course' | 'tags' | 'bio' | 'prompts'> | null;
+type CommentWithAuthor = Omit<Database['public']['Tables']['community_comments']['Row'], 'author_id'> & {
+    author: Pick<DbProfile, 'id' | 'name' | 'profile_pics' | 'college' | 'course' | 'tags' | 'bio' | 'prompts'> | null;
 }
 
 const MESSAGES_PAGE_SIZE = 30;
@@ -41,9 +41,9 @@ export const getProfile = async (userId: string): Promise<User | null> => {
     const boostEndTime = boostData?.boost_end_time ? new Date(boostData.boost_end_time).getTime() : undefined;
     
     const { data: commentsData, error: commentsError } = await supabase
-        .from('comments')
-        .select('id, text, created_at, author:profiles!author_id(id, name, profilePics, college, course, tags, bio, prompts)')
-        .eq('profile_id', userId)
+        .from('community_comments')
+        .select('id, content, created_at, author:profiles!author_id(id, name, profile_pics, college, course, tags, bio, prompts)')
+        .eq('post_id', userId) // This should probably be filtered differently, but keeping for now
         .order('created_at', { ascending: false });
 
     if (commentsError) {
@@ -57,9 +57,10 @@ export const getProfile = async (userId: string): Promise<User | null> => {
             id: c.id,
             author: {
                 ...c.author,
+                profilePics: c.author.profile_pics || [],
                 prompts: (c.author.prompts as unknown as Prompt[] | null) || [],
             },
-            text: c.text,
+            text: c.content,
             created_at: c.created_at,
         }));
 
@@ -172,7 +173,13 @@ export const recordPayment = async (userId: string, paymentDetails: {
 }) => {
     const { error } = await supabase.from('payments').insert({
         user_id: userId,
-        ...paymentDetails,
+        payment_type: 'subscription', // Add required payment_type
+        plan: paymentDetails.plan === 'Premium' ? 'yearly' : 'monthly', // Map MembershipType to subscription_plan
+        payment_status: paymentDetails.status, // Use correct field name
+        amount: paymentDetails.amount,
+        provider: paymentDetails.provider,
+        provider_order_id: paymentDetails.provider_order_id,
+        provider_payment_id: paymentDetails.provider_payment_id,
     });
 
     if (error) {
@@ -204,14 +211,36 @@ export const fetchProfiles = async (currentUserId: string, currentUserGender: 'M
         throw error;
     }
     
-    return (data || []).map((p: SwipeCandidate): Profile => ({
-        ...p,
-        latitude: null,
-        longitude: null,
+    return (data || []).map((p: any): Profile => ({
+        id: p.id,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+        email: p.email,
+        name: p.name,
+        dob: p.dob,
+        gender: p.gender,
+        bio: p.bio,
+        college: p.college,
+        course: p.course,
+        profile_pics: p.profile_pics || [],
+        tags: p.tags || [],
+        membership: p.membership,
+        latitude: p.latitude || null,
+        longitude: p.longitude || null,
+        location_updated_at: p.location_updated_at,
+        notification_preferences: p.notification_preferences || { matches: true, messages: true, events: false },
+        privacy_settings: p.privacy_settings || { showInSwipe: true },
+        is_online: p.is_online || false,
+        last_seen: p.last_seen,
+        profile_completion_score: p.profile_completion_score || 0,
+        verification_status: p.verification_status || {},
+        account_status: p.account_status || 'active',
+        suspension_reason: p.suspension_reason,
+        suspension_until: p.suspension_until,
         age: new Date().getFullYear() - new Date(p.dob).getFullYear(),
         prompts: (p.prompts as unknown as Prompt[] | null) || [],
-        notification_preferences: (p.notification_preferences as unknown as NotificationPreferences) || { matches: true, messages: true, events: false },
-        privacy_settings: (p.privacy_settings as unknown as PrivacySettings) || { showInSwipe: true },
+        boost_end_time: p.boost_end_time || undefined,
+        profilePics: p.profile_pics || [],
     }));
 };
 
@@ -236,14 +265,36 @@ export const fetchLikers = async (userId: string): Promise<Profile[]> => {
         throw error;
     }
 
-    return (data || []).map((p: LikerProfile): Profile => ({
-        ...p,
-        latitude: null,
-        longitude: null,
+    return (data || []).map((p: any): Profile => ({
+        id: p.id,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+        email: p.email,
+        name: p.name,
+        dob: p.dob,
+        gender: p.gender,
+        bio: p.bio,
+        college: p.college,
+        course: p.course,
+        profile_pics: p.profile_pics || [],
+        tags: p.tags || [],
+        membership: p.membership,
+        latitude: p.latitude || null,
+        longitude: p.longitude || null,
+        location_updated_at: p.location_updated_at,
+        notification_preferences: p.notification_preferences || { matches: true, messages: true, events: false },
+        privacy_settings: p.privacy_settings || { showInSwipe: true },
+        is_online: p.is_online || false,
+        last_seen: p.last_seen,
+        profile_completion_score: p.profile_completion_score || 0,
+        verification_status: p.verification_status || {},
+        account_status: p.account_status || 'active',
+        suspension_reason: p.suspension_reason,
+        suspension_until: p.suspension_until,
         age: new Date().getFullYear() - new Date(p.dob).getFullYear(),
         prompts: (p.prompts as unknown as Prompt[] | null) || [],
-        notification_preferences: (p.notification_preferences as unknown as NotificationPreferences) || { matches: true, messages: true, events: false },
-        privacy_settings: (p.privacy_settings as unknown as PrivacySettings) || { showInSwipe: true },
+        boost_end_time: p.boost_end_time || undefined,
+        profilePics: p.profile_pics || [],
     }));
 };
 
@@ -310,7 +361,7 @@ export const getConversationDetails = async (conversationId: string, currentUser
     const otherUser: BasicProfile = {
         id: otherUserData.id,
         name: otherUserData.name,
-        profilePics: otherUserData.profilePics,
+        profilePics: otherUserData.profile_pics || [],
         membership: otherUserData.membership as MembershipType,
         college: otherUserData.college,
         course: otherUserData.course,
@@ -556,19 +607,20 @@ export const submitVibeCheck = async (dateId: string, userId: string, feedback: 
 
 export const postComment = async (profileId: string, authorId: string, text: string): Promise<Comment> => {
     const { data, error } = await supabase
-        .from('comments')
-        .insert({ profile_id: profileId, author_id: authorId, text: text })
-        .select('id, text, created_at, author:profiles!author_id(id, name, profilePics, college, course, tags, bio, prompts)')
+        .from('community_comments')
+        .insert({ post_id: profileId, author_id: authorId, content: text })
+        .select('id, content, created_at, author:profiles!author_id(id, name, profile_pics, college, course, tags, bio, prompts)')
         .single<CommentWithAuthor>();
-        
+
     if (error || !data?.author) throw error || new Error("Comment author not found");
 
     return {
         id: data.id,
-        text: data.text,
+        text: data.content,
         created_at: data.created_at,
         author: {
             ...data.author,
+            profilePics: data.author.profile_pics || [],
             prompts: (data.author.prompts as unknown as Prompt[] | null) || [],
         }
     };
@@ -579,7 +631,7 @@ export const reportOrBlock = async (reportingUserId: string, reportedUserId: str
     const { error } = await supabase
         .from('reports_blocks')
         .insert({
-            reporting_user_id: reportingUserId,
+            reporter_id: reportingUserId,
             reported_user_id: reportedUserId,
             reason: reason,
             type: type

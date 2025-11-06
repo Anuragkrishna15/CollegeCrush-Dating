@@ -67,10 +67,11 @@ export type Profile = Omit<DbProfile, "prompts" | "notification_preferences" | "
   prompts: Prompt[] | null;
   notification_preferences: NotificationPreferences;
   privacy_settings: PrivacySettings;
+  profilePics: string[];
 };
 
 
-export type User = Omit<DbProfile, "prompts" | "notification_preferences" | "privacy_settings"> & {
+export type User = Omit<DbProfile, "prompts" | "notification_preferences" | "privacy_settings" | "profile_pics"> & {
     age: number;
     comments: Comment[];
     boost_end_time?: number;
@@ -79,6 +80,7 @@ export type User = Omit<DbProfile, "prompts" | "notification_preferences" | "pri
     longitude?: number | null;
     notification_preferences: NotificationPreferences;
     privacy_settings: PrivacySettings;
+    profilePics: string[];
 };
 
 
@@ -161,7 +163,7 @@ export type AppNotification = {
   message: string;
   type: NotificationType;
   created_at: string;
-  source_entity_id: string | null;
+  source_entity_id?: string | null;
   user_id: string;
 };
 

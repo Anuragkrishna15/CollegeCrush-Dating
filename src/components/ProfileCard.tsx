@@ -33,14 +33,14 @@ const ProfileCard = React.memo(function ProfileCard({ profile, onClick }: Profil
             whileHover={{ opacity: 1 }}
         ></MotionDiv>
         <div className="relative w-full h-full bg-black/40 rounded-[23px] overflow-hidden backdrop-blur-sm">
-        {profile.profile_pics.length > 1 && (
+        {profile.profilePics.length > 1 && (
             <div className="absolute top-3 inset-x-3 z-10 h-1 flex items-center gap-1.5">
-                {profile.profile_pics.map((pic, i) => (
+                {profile.profilePics.map((pic, i) => (
                     <div key={pic} className={`h-full flex-1 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'}`} />
                 ))}
             </div>
         )}
-        <img src={getOptimizedUrl(profile.profile_pics[0], { width: 400, height: 600 })} alt={profile.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <img src={getOptimizedUrl(profile.profilePics[0], { width: 400, height: 600 })} alt={profile.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col justify-end">
             <div>
