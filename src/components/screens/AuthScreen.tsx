@@ -5,6 +5,7 @@ import { supabase } from '../../services/supabase.ts';
 import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
 import LoadingSpinner from '../LoadingSpinner.tsx';
 import { motion } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 
 // Fix for framer-motion type errors
 const MotionDiv: any = motion.div;
@@ -24,7 +25,11 @@ const ALLOWED_DOMAINS = [
     'abes.ac.in', 'niu.edu.in', 'chitkarauniversity.edu.in',
 ];
 
-const AuthScreen: React.FC = () => {
+interface AuthScreenProps {
+    onBackToLanding?: () => void;
+}
+
+const AuthScreen: React.FC<AuthScreenProps> = ({ onBackToLanding }) => {
     const [email, setEmail] = React.useState('');
     const [otp, setOtp] = React.useState('');
     const [loading, setLoading] = React.useState(false);
@@ -79,7 +84,17 @@ const AuthScreen: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-transparent text-white flex flex-col justify-center items-center p-4 font-sans">
-             <div className="w-full max-w-sm text-center">
+              <div className="w-full max-w-sm text-center">
+                {onBackToLanding && (
+                    <button
+                        onClick={onBackToLanding}
+                        className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mb-4 self-start"
+                        aria-label="Back to landing page"
+                    >
+                        <ArrowLeft size={16} />
+                        Back to Home
+                    </button>
+                )}
                 <h1 className="text-5xl font-bold">
                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-500">College</span><span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-violet-400">Crush</span>
                 </h1>

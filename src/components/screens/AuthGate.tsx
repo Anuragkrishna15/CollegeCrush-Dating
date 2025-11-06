@@ -11,7 +11,7 @@ const AuthGate: React.FC = () => {
         return <LandingScreen onGetStarted={() => setShowLanding(false)} />;
     }
 
-    return <AuthScreen />;
+    return <AuthScreen onBackToLanding={() => setShowLanding(true)} />;
 };
 
 export default AuthGate;

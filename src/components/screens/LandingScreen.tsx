@@ -166,9 +166,14 @@ function LandingScreen({ onGetStarted }: LandingScreenProps) {
           <h1 className="text-2xl font-bold">
             <img src="/images/logo.png" alt="CollegeCrush" className="h-16 rounded-full" />
           </h1>
-          <button onClick={onGetStarted} className="bg-white text-black font-semibold px-4 py-2 rounded-lg text-sm hover:bg-neutral-200 transition-colors">
-            Launch App
-          </button>
+          <div className="flex gap-4">
+            <button onClick={onGetStarted} className="bg-white text-black font-semibold px-4 py-2 rounded-lg text-sm hover:bg-neutral-200 transition-colors">
+              Launch App
+            </button>
+            <button onClick={onGetStarted} className="border border-white/30 text-white font-semibold px-4 py-2 rounded-lg text-sm hover:bg-white/10 transition-colors">
+              Sign In / Sign Up
+            </button>
+          </div>
         </div>
       </MotionHeader>
 

@@ -1,9 +1,10 @@
 
 import * as React from 'react';
 import { Screen } from '../../types/types.ts';
-import { Bell, ArrowLeft, Sun, Moon, Monitor } from 'lucide-react';
+import { Bell, ArrowLeft, Sun, Moon, Monitor, LogOut } from 'lucide-react';
 import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
 import { useTheme } from '../../hooks/useTheme.ts';
+import { useUser } from '../../hooks/useUser.ts';
 
 interface TopBarProps {
     activeScreen: Screen;
@@ -27,6 +28,7 @@ const screenConfig: Record<string, { title: string; showBackTo?: Screen }> = {
 const TopBar: React.FC<TopBarProps> = ({ activeScreen, unreadCount, setActiveScreen }) => {
     const config = screenConfig[activeScreen];
     const { theme, toggleTheme } = useTheme();
+    const { logout } = useUser();
     if (!config) return null;
 
     const handleBack = () => {
@@ -76,6 +78,13 @@ const TopBar: React.FC<TopBarProps> = ({ activeScreen, unreadCount, setActiveScr
                     {unreadCount > 0 && (
                         <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-zinc-950"></div>
                     )}
+                </button>
+                <button
+                    onClick={logout}
+                    className="p-2 rounded-full hover:bg-zinc-800 transition-colors"
+                    aria-label="Logout and return to landing page"
+                >
+                    <LogOut />
                 </button>
             </div>
         </div>
