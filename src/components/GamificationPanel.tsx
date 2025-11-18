@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Trophy, Target, Flame, Star, Award, Zap, TrendingUp, Calendar } from 'lucide-react';
 import { Achievement, DailyChallenge, UserStats } from '../types/types.ts';
 import { useUser } from '../hooks/useUser.ts';
+import { getUserStats } from '../services/api.ts';
 
 // Fix for framer-motion type errors
 const MotionDiv: any = motion.div;
@@ -18,6 +19,12 @@ interface GamificationPanelProps {
 const GamificationPanel: React.FC<GamificationPanelProps> = ({ compact = false, onClose }) => {
   const [userStats, setUserStats] = React.useState<UserStats | null>(null);
   const { user } = useUser();
+
+  React.useEffect(() => {
+    if (user?.id) {
+      getUserStats(user.id).then(setUserStats).catch(console.error);
+    }
+  }, [user?.id]);
 
   const levelProgress = userStats ? ((userStats.points % 1000) / 1000) * 100 : 0;
 

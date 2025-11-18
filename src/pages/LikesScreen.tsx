@@ -1,18 +1,18 @@
 
 import * as React from 'react';
-import { fetchLikers, getProfile } from '../../services/api.ts';
-import { Profile, MembershipType, Screen } from '../../types/types.ts';
-import { useUser } from '../../hooks/useUser.ts';
-import { useNotification } from '../../hooks/useNotification.ts';
-import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
+import { fetchLikers, getProfile } from '../services/api.ts';
+import { Profile, MembershipType, Screen } from '../types/types.ts';
+import { useUser } from '../hooks/useUser.ts';
+import { useNotification } from '../hooks/useNotification.ts';
+import { PREMIUM_GRADIENT } from '../constants/constants.ts';
 import { Star, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
-import EmptyState from '../common/EmptyState.tsx';
-import GridSkeleton from '../skeletons/GridSkeleton.tsx';
-import BlurredPlaceholder from '../common/BlurredPlaceholder.tsx';
-import BlurredProfileCard from '../common/BlurredProfileCard.tsx';
-import { supabase } from '../../services/supabase.ts';
-import { getOptimizedUrl } from '../../utils/date.ts';
+import EmptyState from '../components/common/EmptyState.tsx';
+import GridSkeleton from '../components/skeletons/GridSkeleton.tsx';
+import BlurredPlaceholder from '../components/common/BlurredPlaceholder.tsx';
+import BlurredProfileCard from '../components/common/BlurredProfileCard.tsx';
+import { supabase } from '../services/supabase.ts';
+import { getOptimizedUrl } from '../utils/date.ts';
 
 // Fix for framer-motion type errors
 const MotionDiv: any = motion.div;
@@ -103,7 +103,7 @@ const LikesScreen: React.FC<LikesScreenProps> = ({ onProfileClick, setActiveScre
                         className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group"
                         onClick={() => onProfileClick(liker)}
                     >
-                        <img src={getOptimizedUrl(liker.profilePics[0], { width: 250, height: 250 })} alt={liker.name} loading="lazy" className="w-full h-full object-cover transition-all duration-300 group-hover:brightness-110" />
+                        <img src={getOptimizedUrl(liker.profile_pics[0], { width: 250, height: 250 })} alt={liker.name} loading="lazy" className="w-full h-full object-cover transition-all duration-300 group-hover:brightness-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-3">
                             <p className="text-white font-bold text-sm truncate">{liker.name}, {liker.age}</p>
                         </div>

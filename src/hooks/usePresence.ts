@@ -35,7 +35,10 @@ export const PresenceProvider = ({ children }: { children: React.ReactNode }): R
 
         const updateOnlineUsers = () => {
             const presenceState = channel.presenceState();
-            const userIds = Object.keys(presenceState).map(key => (presenceState[key][0] as any).user_id as string);
+            const userIds = Object.keys(presenceState)
+                .map(key => presenceState[key][0])
+                .filter((presence): presence is any => presence && typeof presence === 'object' && 'user_id' in presence)
+                .map(presence => presence.user_id as string);
             setOnlineUsers(new Set(userIds));
         };
         
@@ -43,10 +46,13 @@ export const PresenceProvider = ({ children }: { children: React.ReactNode }): R
         channel.on('presence', { event: 'join' }, updateOnlineUsers);
         channel.on('presence', { event: 'leave' }, updateOnlineUsers);
 
-
         channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                await channel.track({ online_at: new Date().toISOString(), user_id: user.id });
+                try {
+                    await channel.track({ online_at: new Date().toISOString(), user_id: user.id });
+                } catch (error) {
+                    console.error('Failed to track presence:', error);
+                }
             }
         });
 

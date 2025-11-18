@@ -1,16 +1,16 @@
 
 import * as React from 'react';
-import { updateProfile, uploadProfilePicture } from '../../services/api.ts';
-import { ProfileOnboardingData, Prompt } from '../../types/types.ts';
-import LoadingSpinner from '../LoadingSpinner.tsx';
-import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
-import { useUser } from '../../hooks/useUser.ts';
-import { useNotification } from '../../hooks/useNotification.ts';
+import { updateProfile, uploadProfilePicture } from '../services/api.ts';
+import { ProfileOnboardingData, Prompt } from '../types/types.ts';
+import LoadingSpinner from '../components/LoadingSpinner.tsx';
+import { PREMIUM_GRADIENT } from '../constants/constants.ts';
+import { useUser } from '../hooks/useUser.ts';
+import { useNotification } from '../hooks/useNotification.ts';
 import { Camera, X, GripVertical, Plus, Edit3 } from 'lucide-react';
-import { getOptimizedUrl } from '../../utils/date.ts';
-import type { Database } from '../../services/database.types.ts';
+import { getOptimizedUrl } from '../utils/date.ts';
+import type { Database } from '../services/database.types.ts';
 import { motion } from 'framer-motion';
-import { Json } from '../../services/database.types.ts';
+import { Json } from '../services/database.types.ts';
 
 // Fix for framer-motion type errors
 const MotionButton: any = motion.button;
@@ -66,7 +66,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onProfileUpdate }
         course: user.course,
       });
       setSelectedTags(user.tags);
-      setPictures(user.profilePics || []);
+      setPictures(user.profile_pics || []);
       
       // Ensure there are always 3 slots for prompts, filling with existing or null
       const userPrompts = user.prompts || [];
@@ -161,7 +161,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onProfileUpdate }
         const updatePayload: Partial<Database['public']['Tables']['profiles']['Update']> = {
           ...formData,
           tags: selectedTags,
-          profilePics: finalPictures,
+          profile_pics: finalPictures,
           prompts: prompts.filter(p => p !== null) as unknown as Json,
         };
         
@@ -177,7 +177,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onProfileUpdate }
   };
 
   if (!user) {
-    return <div className="h-full flex items-center justify-center"><LoadingSpinner/></div>
+    return <div className="h-full flex items-center justify-center"><LoadingSpinner /></div>
   }
 
   return (

@@ -9,8 +9,8 @@ import LoadingSpinner from './components/LoadingSpinner.tsx';
 import ProfileDetailModal from './components/modals/ProfileDetailModal.tsx';
 import BookBlindDateModal from './components/modals/BookBlindDateModal.tsx';
 import VibeCheckModal from './components/modals/VibeCheckModal.tsx';
-import OnboardingScreen from './components/screens/OnboardingScreen.tsx';
-import AuthGate from './components/screens/AuthGate.tsx';
+import OnboardingScreen from './pages/OnboardingScreen.tsx';
+import AuthGate from './pages/AuthGate.tsx';
 import TopBar from './components/common/TopBar.tsx';
 import ScrollToTopButton from './components/common/ScrollToTopButton.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
@@ -22,21 +22,23 @@ import { PresenceProvider } from './hooks/usePresence.ts';
 import { NotificationContext, notificationHandler } from './hooks/useNotification.ts';
 import { getProfile, getUnreadNotificationsCount, markAllNotificationsAsRead, getConversationDetails, markNotificationAsRead } from './services/api.ts';
 import { supabase } from './services/supabase.ts';
-import SwipeScreen from './components/screens/SwipeScreen.tsx';
+import { pushNotificationService } from './services/pushNotifications.ts';
+import SwipeScreen from './pages/SwipeScreen.tsx';
 
 const { lazy, Suspense } = React;
 
 // Lazy load screens for better performance
-const DatesScreen = lazy(() => import('./components/screens/DatesScreen.tsx'));
-const ChatScreen = lazy(() => import('./components/screens/ChatScreen.tsx'));
-const CommunityScreen = lazy(() => import('./components/screens/CommunityScreen.tsx'));
-const TripsScreen = lazy(() => import('./components/screens/TripsScreen.tsx'));
-const EventsScreen = lazy(() => import('./components/screens/EventsScreen.tsx'));
-const ProfileScreen = lazy(() => import('./components/screens/ProfileScreen.tsx'));
-const SettingsScreen = lazy(() => import('./components/screens/SettingsScreen.tsx'));
-const EditProfileScreen = lazy(() => import('./components/screens/EditProfileScreen.tsx'));
-const LikesScreen = lazy(() => import('./components/screens/LikesScreen.tsx'));
-const NotificationsScreen = lazy(() => import('./components/screens/NotificationsScreen.tsx'));
+const DatesScreen = lazy(() => import('./pages/DatesScreen.tsx'));
+const ChatScreen = lazy(() => import('./pages/ChatScreen.tsx'));
+const CommunityScreen = lazy(() => import('./pages/CommunityScreen.tsx'));
+const TripsScreen = lazy(() => import('./pages/TripsScreen.tsx'));
+const EventsScreen = lazy(() => import('./pages/EventsScreen.tsx'));
+const ProfileScreen = lazy(() => import('./pages/ProfileScreen.tsx'));
+const SettingsScreen = lazy(() => import('./pages/SettingsScreen.tsx'));
+const EditProfileScreen = lazy(() => import('./pages/EditProfileScreen.tsx'));
+const LikesScreen = lazy(() => import('./pages/LikesScreen.tsx'));
+const NotificationsScreen = lazy(() => import('./pages/NotificationsScreen.tsx'));
+const AdminScreen = lazy(() => import('./pages/AdminScreen'));
 
 // Fix for framer-motion type errors
 const MotionDiv: any = motion.div;
@@ -74,11 +76,16 @@ const App: React.FC = () => {
   }, []);
 
   const refetchUser = React.useCallback(async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id) {
+      console.log('App: No session user ID, skipping refetch');
+      return;
+    }
     try {
+      console.log('App: Refetching user profile for ID:', session.user.id);
       setLoading(true);
       setProfileError(null);
       const profile = await getProfile(session.user.id);
+      console.log('App: Profile fetched:', profile ? 'Success' : 'Null');
       setUser(profile);
       setBoostEndTime(profile?.boost_end_time);
     } catch (error: any) {
@@ -99,12 +106,15 @@ const App: React.FC = () => {
   };
   
   React.useEffect(() => {
+    console.log('App: Initializing auth session');
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('App: Session loaded:', session ? 'Present' : 'Null');
       setSession(session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.log('App: Auth state change:', _event, session ? 'Session present' : 'No session');
         setSession(session);
         if (_event === 'SIGNED_OUT') {
             setUser(null);
@@ -122,7 +132,7 @@ const App: React.FC = () => {
   React.useEffect(() => {
     if (session?.user?.id) {
       refetchUser();
-      
+
       getUnreadNotificationsCount(session.user.id).then(setUnreadCount);
 
       const channel = supabase.channel(`notifications-for-${session.user.id}`)
@@ -131,11 +141,24 @@ const App: React.FC = () => {
             schema: 'public',
             table: 'notifications',
             filter: `user_id=eq.${session.user.id}`
-        }, (payload: any) => {
+        }, async (payload: any) => {
             const newNotification = payload.new;
             if (newNotification && 'message' in newNotification) {
                 notificationHandler((newNotification as AppNotification).message, 'info');
                 setUnreadCount(prev => prev + 1);
+
+                // Check if we should send push notification
+                if (user?.notification_preferences) {
+                    const notificationType = getNotificationType(newNotification.type);
+                    if (pushNotificationService.shouldSendPush(user.notification_preferences, notificationType)) {
+                        await pushNotificationService.sendPushNotification(
+                            session.user.id,
+                            'CollegeCrush',
+                            newNotification.message,
+                            { type: newNotification.type, id: newNotification.id }
+                        );
+                    }
+                }
             }
         })
         .on('system', { event: 'error' }, (error) => {
@@ -145,7 +168,7 @@ const App: React.FC = () => {
             }
         })
         .subscribe();
-      
+
       return () => {
           supabase.removeChannel(channel);
       };
@@ -154,6 +177,12 @@ const App: React.FC = () => {
       setUnreadCount(0);
     }
   }, [session, refetchUser]);
+
+  React.useEffect(() => {
+    if (user?.notification_preferences) {
+      pushNotificationService.initialize(user.notification_preferences);
+    }
+  }, [user]);
   
   const contextValue = React.useMemo(() => ({ user, loading, logout, refetchUser, boostEndTime }), [user, loading, logout, refetchUser, boostEndTime]);
 
@@ -170,6 +199,7 @@ const App: React.FC = () => {
       case Screen.Settings: return 'Settings - CollegeCrush';
       case Screen.EditProfile: return 'Edit Profile - CollegeCrush';
       case Screen.Notifications: return 'Notifications - CollegeCrush';
+      case Screen.Admin: return 'Admin - CollegeCrush';
       default: return 'CollegeCrush - Exclusive Dating for College Students';
     }
   };
@@ -195,49 +225,69 @@ const App: React.FC = () => {
     }
   };
 
-  const handleNotificationClick = async (notification: AppNotification) => {
-      if (!user) return;
-  
-      setLoading(true);
-      const wasUnread = !notification.is_read;
-
-      try {
-           if (notification.source_entity_id) {
-                switch (notification.type) {
-                    case 'new_message':
-                    case 'new_match':
-                    case 'vibe_check_match': {
-                        const convo = await getConversationDetails(notification.source_entity_id, user.id);
-                        if (convo) {
-                            setActiveConversation(convo);
-                            setActiveScreen(Screen.Chat);
-                        } else {
-                            throw new Error("Could not load the conversation.");
-                        }
-                        break;
-                    }
-                    case 'new_blind_date_request':
-                    case 'blind_date_accepted':
-                        setActiveScreen(Screen.Dates);
-                        break;
-                    default:
-                        // For notifications without a direct link, do nothing.
-                        break;
-                }
-           }
-          
-          if (wasUnread) {
-            await markNotificationAsRead(notification.id);
-            setUnreadCount(prev => Math.max(0, prev - 1));
-          }
-      } catch (error: any) {
-          notificationHandler(error.message || "Could not open notification.", "error");
-      } finally {
-          setLoading(false);
-      }
+  const getNotificationType = (type: string): 'matches' | 'messages' | 'events' | 'community' => {
+    switch (type) {
+      case 'new_match':
+      case 'vibe_check_match':
+        return 'matches';
+      case 'new_message':
+        return 'messages';
+      case 'new_blind_date_request':
+      case 'blind_date_accepted':
+      case 'event_reminder':
+        return 'events';
+      case 'community_post':
+      case 'community_comment':
+        return 'community';
+      default:
+        return 'messages';
+    }
   };
 
+  const handleNotificationClick = async (notification: AppNotification) => {
+       if (!user) return;
+
+       setLoading(true);
+       const wasUnread = !notification.is_read;
+
+       try {
+            if (notification.source_entity_id) {
+                 switch (notification.type) {
+                     case 'new_message':
+                     case 'new_match':
+                     case 'vibe_check_match': {
+                         const convo = await getConversationDetails(notification.source_entity_id, user.id);
+                         if (convo) {
+                             setActiveConversation(convo);
+                             setActiveScreen(Screen.Chat);
+                         } else {
+                             throw new Error("Could not load the conversation.");
+                         }
+                         break;
+                     }
+                     case 'new_blind_date_request':
+                     case 'blind_date_accepted':
+                         setActiveScreen(Screen.Dates);
+                         break;
+                     default:
+                         // For notifications without a direct link, do nothing.
+                         break;
+                 }
+            }
+
+           if (wasUnread) {
+             await markNotificationAsRead(notification.id);
+             setUnreadCount(prev => Math.max(0, prev - 1));
+           }
+       } catch (error: any) {
+           notificationHandler(error.message || "Could not open notification.", "error");
+       } finally {
+           setLoading(false);
+       }
+   };
+
   const renderScreen = () => {
+    console.log('App: Rendering screen:', activeScreen);
     switch (activeScreen) {
       case Screen.Swipe:
         return <SwipeScreen onProfileClick={setSelectedProfile} onGoToChat={handleGoToChat} setActiveScreen={setActiveScreen} />;
@@ -265,6 +315,8 @@ const App: React.FC = () => {
         return <EditProfileScreen onProfileUpdate={handleProfileUpdate} />;
       case Screen.Notifications:
         return <NotificationsScreen onMarkAllAsRead={handleMarkAllAsRead} onNotificationClick={handleNotificationClick} />;
+      case Screen.Admin:
+        return <AdminScreen />;
       default:
         return <SwipeScreen onProfileClick={setSelectedProfile} onGoToChat={handleGoToChat} setActiveScreen={setActiveScreen} />;
     }

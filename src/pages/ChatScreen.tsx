@@ -1,7 +1,7 @@
 
 
 import * as React from 'react';
-import { Conversation, Profile } from '../../types/types.ts';
+import { Conversation, Profile } from '../types/types.ts';
 import ChatListScreen from './chat/ChatListScreen.tsx';
 import ChatDetailScreen from './chat/ChatDetailScreen.tsx';
 

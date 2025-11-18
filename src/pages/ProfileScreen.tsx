@@ -1,15 +1,15 @@
 
 
 import * as React from 'react';
-import { useUser } from '../../hooks/useUser.ts';
-import { MembershipType, Screen } from '../../types/types.ts';
-import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
-import { updateUserMembership, boostProfile, recordPayment } from '../../services/api.ts';
-import { initiatePayment } from '../../services/cashfree.ts';
-import { useNotification } from '../../hooks/useNotification.ts';
-import LoadingSpinner from '../LoadingSpinner.tsx';
+import { useUser } from '../hooks/useUser.ts';
+import { MembershipType, Screen } from '../types/types.ts';
+import { PREMIUM_GRADIENT } from '../constants/constants.ts';
+import { updateUserMembership, boostProfile, recordPayment } from '../services/api.ts';
+import { initiatePayment } from '../services/cashfree.ts';
+import { useNotification } from '../hooks/useNotification.ts';
+import LoadingSpinner from '../components/LoadingSpinner.tsx';
 import { Crown, Zap, Settings, LogOut, CheckCircle2, XCircle, ChevronRight, Edit } from 'lucide-react';
-import { getOptimizedUrl } from '../../utils/date.ts';
+import { getOptimizedUrl } from '../utils/date.ts';
 import { motion } from 'framer-motion';
 
 // Fix for framer-motion type errors
@@ -224,7 +224,7 @@ const ProfileScreen: React.FC<{setActiveScreen: (screen: Screen) => void}> = ({s
         <div className="p-4 md:p-6 pb-28 md:pb-12 space-y-8">
             <div className="flex flex-col items-center text-center">
                 <div className="relative p-1 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
-                    <img src={getOptimizedUrl(user.profilePics[0], { width: 96, height: 96 })} alt={user.name} loading="lazy" className="w-24 h-24 rounded-full object-cover border-4 border-zinc-900" />
+                    <img src={getOptimizedUrl(user.profile_pics[0], { width: 96, height: 96 })} alt={user.name} loading="lazy" className="w-24 h-24 rounded-full object-cover border-4 border-zinc-900" />
                     {user.membership !== MembershipType.Free && (
                          <div className={`absolute -bottom-1 -right-2 p-1 rounded-full bg-gradient-to-r ${PREMIUM_GRADIENT}`}>
                          <Crown size={16} className="text-white"/>

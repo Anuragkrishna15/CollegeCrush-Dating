@@ -1,19 +1,19 @@
 
 import * as React from 'react';
-import { Conversation, Message, Profile, MembershipType } from '../../../types/types.ts';
-import { useUser } from '../../../hooks/useUser.ts';
-import { useNotification } from '../../../hooks/useNotification.ts';
-import { usePresence } from '../../../hooks/usePresence.ts';
-import { getConversationDetails, getMessages, getProfile, markMessagesAsRead } from '../../../services/api.ts';
-import { messagingService, realtimeManager } from '../../../services/messaging.ts';
-import { supabase } from '../../../services/supabase.ts';
-import LoadingSpinner from '../../LoadingSpinner.tsx';
-import { PREMIUM_GRADIENT } from '../../../constants/constants.ts';
+import { Conversation, Message, Profile, MembershipType } from '../../types/types.ts';
+import { useUser } from '../../hooks/useUser.ts';
+import { useNotification } from '../../hooks/useNotification.ts';
+import { usePresence } from '../../hooks/usePresence.ts';
+import { getConversationDetails, getMessages, getProfile, markMessagesAsRead } from '../../services/api.ts';
+import { messagingService, realtimeManager } from '../../services/messaging.ts';
+import { supabase } from '../../services/supabase.ts';
+import LoadingSpinner from '../../components/LoadingSpinner.tsx';
+import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
 import { ArrowLeft, Send, Sparkles, X, Check, CheckCheck, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatMessageTime, formatDateSeparator, getOptimizedUrl } from '../../../utils/date.ts';
-import { IcebreakerGenerator } from '../../chat/IcebreakerGenerator.tsx';
-import RizzMeter from '../../RizzMeter.tsx';
+import { formatMessageTime, formatDateSeparator, getOptimizedUrl } from '../../utils/date.ts';
+import { IcebreakerGenerator } from '../../components/chat/IcebreakerGenerator.tsx';
+import RizzMeter from '../../components/RizzMeter.tsx';
 
 // Fix for framer-motion type errors
 const MotionDiv: any = motion.div;
@@ -36,7 +36,7 @@ interface MessageBubbleProps {
 
 const DateSeparator: React.FC<{ date: string }> = ({ date }) => (
     <div className="flex justify-center my-4">
-        <span className="bg-zinc-800/80 backdrop-blur-sm text-zinc-400 text-xs font-semibold px-3 py-1 rounded-full">
+        <span className="bg-primary-800/80 backdrop-blur-sm text-primary-400 text-xs font-semibold px-3 py-1 rounded-full">
             {formatDateSeparator(date)}
         </span>
     </div>
@@ -44,7 +44,7 @@ const DateSeparator: React.FC<{ date: string }> = ({ date }) => (
 
 const ReadStatusIcon: React.FC<{ isRead: boolean }> = React.memo(({ isRead }) => {
     if (isRead) {
-        return <CheckCheck size={16} className="text-blue-400" />;
+        return <CheckCheck size={16} className="text-primary-400" />;
     }
     return <Check size={16} className="text-white/70" />;
 });
@@ -52,9 +52,9 @@ const ReadStatusIcon: React.FC<{ isRead: boolean }> = React.memo(({ isRead }) =>
 
 const MessageBubble = React.memo(function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
     const alignment = isCurrentUser ? 'justify-end' : 'justify-start';
-    const bubbleStyles = isCurrentUser 
-        ? `bg-gradient-to-r ${PREMIUM_GRADIENT} text-white` 
-        : 'bg-gradient-to-br from-zinc-800 to-zinc-700 text-zinc-200';
+    const bubbleStyles = isCurrentUser
+        ? `bg-gradient-to-r ${PREMIUM_GRADIENT} text-white`
+        : 'bg-gradient-to-br from-primary-800 to-primary-700 text-primary-200';
     
     const bubbleShape = isCurrentUser
         ? 'rounded-t-2xl rounded-bl-2xl'
@@ -71,7 +71,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, isCurrentUser
             <div className={`relative max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 shadow-md ${bubbleStyles} ${bubbleShape}`}>
                 <p className="break-words whitespace-pre-wrap">{message.text}</p>
                 <div className="flex items-center justify-end gap-1 mt-1">
-                     <p className={`text-xs ${isCurrentUser ? 'text-white/70' : 'text-zinc-500'}`}>{formatMessageTime(message.created_at)}</p>
+                     <p className={`text-xs ${isCurrentUser ? 'text-white/70' : 'text-primary-500'}`}>{formatMessageTime(message.created_at)}</p>
                      {isCurrentUser && (message.status === 'sending' ? <Clock size={16} className="text-white/70" /> : <ReadStatusIcon isRead={message.is_read} />)}
                 </div>
             </div>
@@ -386,15 +386,15 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
   if (!user || loading) return <div className="h-full flex items-center justify-center"><LoadingSpinner /></div>;
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950">
+    <div className="h-full flex flex-col bg-primary-950">
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center p-4 border-b border-zinc-800 bg-zinc-950/70 backdrop-blur-lg sticky top-0 z-10">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-zinc-800 mr-2">
+      <div className="flex-shrink-0 flex items-center p-4 border-b border-primary-800 bg-primary-950/70 backdrop-blur-lg sticky top-0 z-10">
+        <button onClick={onBack} className="p-2 rounded-full hover:bg-primary-800 mr-2">
             <ArrowLeft />
         </button>
-        <button onClick={handleHeaderClick} className="flex items-center text-left hover:bg-zinc-800 p-1 rounded-lg transition-colors">
+        <button onClick={handleHeaderClick} className="flex items-center text-left hover:bg-primary-800 p-1 rounded-lg transition-colors">
             <div className={`relative w-10 h-10 rounded-full p-0.5 flex-shrink-0 ${isPremium ? `bg-gradient-to-br ${PREMIUM_GRADIENT}` : ''}`}>
-                <img src={getOptimizedUrl(conversation.otherUser.profilePics[0], { width: 40, height: 40 })} alt={conversation.otherUser.name} loading="lazy" className="w-full h-full rounded-full object-cover border-2 border-zinc-900"/>
+                <img src={getOptimizedUrl(conversation.otherUser.profile_pics[0], { width: 40, height: 40 })} alt={conversation.otherUser.name} loading="lazy" className="w-full h-full rounded-full object-cover border-2 border-primary-900"/>
             </div>
             <div className="ml-3">
                 <h2 className="font-bold text-lg">{conversation.otherUser.name}</h2>
@@ -406,7 +406,7 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
-                                className="text-xs text-green-400 font-semibold absolute bottom-0 left-0"
+                                className="text-xs text-primary-400 font-semibold absolute bottom-0 left-0"
                             >
                                 Online
                             </MotionDiv>
@@ -417,7 +417,7 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
                                 transition={{ duration: 0.3 }}
-                                className="text-xs text-purple-400 absolute bottom-0 left-0"
+                                className="text-xs text-primary-400 absolute bottom-0 left-0"
                             >
                                 typing...
                             </MotionDiv>
@@ -429,7 +429,7 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
       </div>
 
       {/* Messages */}
-      <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto p-4 space-y-2 bg-zinc-950">
+      <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto p-4 space-y-2 bg-primary-950">
         {loadingMore && (
             <div className="flex justify-center py-4">
                 <LoadingSpinner />
@@ -450,7 +450,7 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
                  >
                     <button 
                         onClick={handleRizzCheck}
-                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                        className="px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-full text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
                     >
                         <Sparkles size={16} /> Check Rizz
                     </button>
@@ -466,7 +466,7 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
                     >
                         <button
                             onClick={() => setShowRizzMeter(false)}
-                            className="absolute -top-3 -right-3 z-10 bg-zinc-800 rounded-full p-2 text-zinc-400 hover:text-white shadow-lg transition-colors"
+                            className="absolute -top-3 -right-3 z-10 bg-primary-800 rounded-full p-2 text-primary-400 hover:text-white shadow-lg transition-colors"
                         >
                             <X size={24}/>
                         </button>
@@ -479,7 +479,7 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-950/70 backdrop-blur-lg">
+      <div className="flex-shrink-0 p-4 border-t border-primary-800 bg-primary-950/70 backdrop-blur-lg">
         <form onSubmit={handleSendMessage} className="flex items-end gap-2">
             <div className="flex-1 relative">
                 {!newMessage.trim() && (
@@ -502,7 +502,7 @@ function ChatDetailScreen({ conversation, onBack, onProfileClick }: ChatDetailSc
                     }}
                     placeholder="Type a message..."
                     rows={1}
-                    className={`w-full p-3 bg-zinc-800 border border-zinc-700 rounded-2xl focus:outline-none focus:ring-1 focus:ring-pink-500 resize-none max-h-32 ${!newMessage.trim() ? 'pl-12' : ''}`}
+                    className={`w-full p-3 bg-primary-800 border border-primary-700 rounded-2xl focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none max-h-32 ${!newMessage.trim() ? 'pl-12' : ''}`}
                 />
             </div>
             <MotionButton
