@@ -12,6 +12,7 @@ export enum Screen {
   Settings = 'Settings',
   EditProfile = 'EditProfile',
   Notifications = 'Notifications',
+  Admin = 'Admin',
 }
 
 export enum MembershipType {
@@ -32,7 +33,7 @@ export interface Prompt {
 export interface BasicProfile {
   id: string;
   name: string;
-  profilePics: string[];
+  profile_pics: string[];
   college: string;
   course: string;
   tags: string[];
@@ -47,7 +48,7 @@ export interface BasicProfile {
 export interface Comment {
     id: string;
     author: BasicProfile;
-    text: string;
+    content: string;
     created_at: string;
 }
 
@@ -55,6 +56,11 @@ export interface NotificationPreferences {
     matches: boolean;
     messages: boolean;
     events: boolean;
+    pushEnabled: boolean;
+    pushMatches: boolean;
+    pushMessages: boolean;
+    pushEvents: boolean;
+    pushCommunity: boolean;
 }
 
 export interface PrivacySettings {
@@ -133,9 +139,37 @@ export interface MyBlindDateProposal {
 }
 
 
-export type Trip = Database['public']['Tables']['trips']['Row'];
+export interface Trip {
+  id: string;
+  image_url: string | null;
+  location: string;
+  date: string;
+  details: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  fare: number | null;
+  slots: number;
+  type: 'Couple' | 'Stranger' | 'Group';
+}
+
+export interface TripBooking {
+  id: number;
+  trip_id: string;
+  user_id: string;
+  status: string;
+  payment_status: string;
+  special_requests: string | null;
+  emergency_contact: any | null;
+  created_at: string;
+  trip?: Trip; // For joined data
+}
 export type CollegeEvent = Database['public']['Tables']['events']['Row'] & {
   rsvpStatus: 'going' | 'interested' | 'none';
+  organizer?: {
+    id: string;
+    name: string;
+    profile_pics: string[];
+  } | null;
 };
 
 
@@ -182,6 +216,7 @@ export interface CommunityPost {
   commentCount: number;
   created_at: string;
   userVote?: 'up' | 'down' | null;
+  mediaUrls?: string[];
 }
 
 export interface CommunityComment {
@@ -242,3 +277,16 @@ export interface UserStats {
   achievements: Achievement[];
   dailyChallenges: DailyChallenge[];
 }
+
+// Matching algorithm types
+export interface MatchingPreferences {
+  ageRange: { min: number; max: number };
+  maxDistance: number; // in km
+  preferredGenders: ('Male' | 'Female' | 'Other')[];
+  interests: string[];
+  activityWeight: number; // 0-1, how much to weight recent activity
+  diversityWeight: number; // 0-1, how much to weight diversity
+  compatibilityWeight: number; // 0-1, how much to weight compatibility
+}
+
+export type MatchingVariant = 'control' | 'advanced' | 'ml-inspired';

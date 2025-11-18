@@ -56,9 +56,9 @@ function BottomNav({ activeScreen, setActiveScreen }: BottomNavProps) {
   return (
     <>
       {/* Mobile Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom">
         <div className="bg-zinc-950/70 backdrop-blur-lg border-t border-zinc-800 shadow-lg-top">
-          <div className="flex justify-around items-center h-20 pt-2">
+          <div className="flex justify-around items-center h-20 pt-2 pb-safe">
             {NAV_ITEMS.map((item) => {
               const isActive = activeScreen === item.screen;
               return <NavItem key={item.screen} item={item} isActive={isActive} onClick={() => setActiveScreen(item.screen)} />;

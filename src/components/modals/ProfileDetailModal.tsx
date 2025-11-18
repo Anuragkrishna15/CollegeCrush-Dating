@@ -79,13 +79,13 @@ function ProfileDetailModal({ profile: initialProfile, onClose }: ProfileDetailM
     
     const handleNext = () => {
         if (!fullProfile) return;
-        const nextIndex = (currentImageIndex + 1) % fullProfile.profilePics.length;
+        const nextIndex = (currentImageIndex + 1) % fullProfile.profile_pics.length;
         scrollToIndex(nextIndex);
     };
 
     const handlePrev = () => {
         if (!fullProfile) return;
-        const prevIndex = (currentImageIndex - 1 + fullProfile.profilePics.length) % fullProfile.profilePics.length;
+        const prevIndex = (currentImageIndex - 1 + fullProfile.profile_pics.length) % fullProfile.profile_pics.length;
         scrollToIndex(prevIndex);
     };
 
@@ -147,17 +147,17 @@ function ProfileDetailModal({ profile: initialProfile, onClose }: ProfileDetailM
                     <>
                     <div className="relative w-full aspect-square max-h-[50vh] flex-shrink-0 group">
                         <div ref={scrollRef} onScroll={handleScroll} className="w-full h-full flex overflow-x-scroll snap-x snap-mandatory scrollbar-hide">
-                            {fullProfile.profilePics.map(pic => (
+                            {fullProfile.profile_pics.map(pic => (
                                 <img key={pic} src={getOptimizedUrl(pic, { width: 500, height: 500 })} alt={fullProfile.name} className="w-full h-full object-cover snap-center flex-shrink-0" />
                             ))}
                         </div>
 
-                         {fullProfile.profilePics.length > 1 && (
+                         {fullProfile.profile_pics.length > 1 && (
                             <>
                                 <button onClick={handlePrev} className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"><ChevronLeft /></button>
                                 <button onClick={handleNext} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"><ChevronRight /></button>
                                 <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5">
-                                    {fullProfile.profilePics.map((_, i) => (
+                                    {fullProfile.profile_pics.map((_, i) => (
                                         <button key={i} onClick={() => scrollToIndex(i)} className={`w-2 h-2 rounded-full transition-colors ${currentImageIndex === i ? 'bg-white' : 'bg-white/50'}`} />
                                     ))}
                                 </div>
@@ -207,7 +207,7 @@ function ProfileDetailModal({ profile: initialProfile, onClose }: ProfileDetailM
                             
                             {canComment && user && user.id !== fullProfile.id ? (
                                 <div className="mt-4 flex items-start gap-3">
-                                    <img src={getOptimizedUrl(user.profilePics[0], { width: 36, height: 36 })} alt="Your avatar" loading="lazy" className="w-9 h-9 rounded-full object-cover" />
+                                    <img src={getOptimizedUrl(user.profile_pics[0], { width: 36, height: 36 })} alt="Your avatar" loading="lazy" className="w-9 h-9 rounded-full object-cover" />
                                     <div className="flex-1">
                                         <textarea 
                                             ref={textareaRef}
@@ -235,13 +235,13 @@ function ProfileDetailModal({ profile: initialProfile, onClose }: ProfileDetailM
                             <div className="mt-6 space-y-5">
                                 {fullProfile.comments.map(comment => (
                                     <div key={comment.id} className="flex items-start gap-3">
-                                        <img src={getOptimizedUrl(comment.author.profilePics[0], { width: 36, height: 36 })} alt={comment.author.name} loading="lazy" className="w-9 h-9 rounded-full object-cover" />
+                                        <img src={getOptimizedUrl(comment.author.profile_pics[0], { width: 36, height: 36 })} alt={comment.author.name} loading="lazy" className="w-9 h-9 rounded-full object-cover" />
                                         <div className="flex-1">
                                             <div className="flex items-baseline gap-2">
                                                 <p className="font-semibold text-sm">{comment.author.name}</p>
                                                 <p className="text-xs text-zinc-500">{formatCommentDate(comment.created_at)}</p>
                                             </div>
-                                            <p className="text-zinc-300 text-sm">{comment.text}</p>
+                                            <p className="text-zinc-300 text-sm">{comment.content}</p>
                                         </div>
                                     </div>
                                 ))}

@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#ec4899" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CollegeCrush" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <link rel="manifest" href="/manifest.json" />
     <title>CollegeCrush - India's Premier College Dating App for Students</title>
     <meta name="description" content="Find love and friends on CollegeCrush, India's exclusive dating app for college students. Swipe, match, blind dates, events, and trips. Verified students only. Download now!" />
     <meta name="keywords" content="college dating app india, student dating, blind dates india, college events, student network india, dating for college students, indian college dating, student social app, college crush india, find college friends" />
@@ -172,6 +178,45 @@
         clip: rect(0, 0, 0, 0);
         white-space: nowrap;
         border-width: 0;
+      }
+
+      /* Mobile optimizations */
+      @supports (padding: max(0px)) {
+        .safe-top {
+          padding-top: max(1rem, env(safe-area-inset-top));
+        }
+        .safe-bottom {
+          padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        }
+        .safe-left {
+          padding-left: max(1rem, env(safe-area-inset-left));
+        }
+        .safe-right {
+          padding-right: max(1rem, env(safe-area-inset-right));
+        }
+      }
+
+      /* Improve touch targets on mobile */
+      @media (max-width: 768px) {
+        button, [role="button"] {
+          min-height: 44px;
+          min-width: 44px;
+        }
+        .touch-target {
+          min-height: 44px;
+          min-width: 44px;
+        }
+      }
+
+      /* Prevent zoom on input focus on iOS */
+      @media screen and (max-width: 767px) {
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        textarea,
+        select {
+          font-size: 16px !important;
+        }
       }
     </style>
   <script type="importmap">

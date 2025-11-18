@@ -37,7 +37,10 @@ const RizzMeter: React.FC<RizzMeterProps> = ({ messages, currentUserId }) => {
                     messageLength: 0,
                     engagement: 0,
                     creativity: 0,
-                    confidence: 0
+                    confidence: 0,
+                    humor: 0,
+                    empathy: 0,
+                    consistency: 0
                 }
             };
         }
@@ -55,7 +58,10 @@ const RizzMeter: React.FC<RizzMeterProps> = ({ messages, currentUserId }) => {
                     messageLength: 0,
                     engagement: 0,
                     creativity: 0,
-                    confidence: 0
+                    confidence: 0,
+                    humor: 0,
+                    empathy: 0,
+                    consistency: 0
                 }
             };
         }

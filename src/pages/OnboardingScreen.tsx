@@ -1,10 +1,10 @@
 
 import * as React from 'react';
-import { createProfile } from '../../services/api.ts';
-import { ProfileOnboardingData, Prompt } from '../../types/types.ts';
-import LoadingSpinner from '../LoadingSpinner.tsx';
-import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
-import { supabase } from '../../services/supabase.ts';
+import { createProfile } from '../services/api.ts';
+import { ProfileOnboardingData, Prompt } from '../types/types.ts';
+import LoadingSpinner from '../components/LoadingSpinner.tsx';
+import { PREMIUM_GRADIENT } from '../constants/constants.ts';
+import { supabase } from '../services/supabase.ts';
 import { Camera, Plus, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

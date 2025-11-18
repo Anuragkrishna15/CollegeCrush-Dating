@@ -1,15 +1,15 @@
 
 import * as React from 'react';
-import { Conversation, MembershipType, Message } from '../../../types/types.ts';
-import { fetchConversations, getConversationDetails } from '../../../services/api.ts';
-import { useUser } from '../../../hooks/useUser.ts';
-import { usePresence } from '../../../hooks/usePresence.ts';
-import ChatSkeleton from '../../skeletons/ChatSkeleton.tsx';
-import EmptyState from '../../common/EmptyState.tsx';
+import { Conversation, MembershipType, Message } from '../../types/types.ts';
+import { fetchConversations, getConversationDetails } from '../../services/api.ts';
+import { useUser } from '../../hooks/useUser.ts';
+import { usePresence } from '../../hooks/usePresence.ts';
+import ChatSkeleton from '../../components/skeletons/ChatSkeleton.tsx';
+import EmptyState from '../../components/common/EmptyState.tsx';
 import { MessageSquare } from 'lucide-react';
-import { formatMessageTime, getOptimizedUrl } from '../../../utils/date.ts';
-import { PREMIUM_GRADIENT } from '../../../constants/constants.ts';
-import { supabase } from '../../../services/supabase.ts';
+import { formatMessageTime, getOptimizedUrl } from '../../utils/date.ts';
+import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
+import { supabase } from '../../services/supabase.ts';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Fix for framer-motion type errors
@@ -34,22 +34,22 @@ const ConversationItem: React.FC<ConversationItemProps> = React.memo(({ conversa
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             onClick={onClick}
-            className="w-full text-left flex items-center gap-4 p-4 hover:bg-zinc-800/50 rounded-xl transition-colors duration-200"
+            className="w-full text-left flex items-center gap-4 p-4 hover:bg-primary-800/50 rounded-xl transition-colors duration-200"
         >
             <div className="relative flex-shrink-0">
                 <div className={`relative w-14 h-14 rounded-full p-0.5 ${isPremium ? `bg-gradient-to-br ${PREMIUM_GRADIENT}` : ''}`}>
-                    <img src={getOptimizedUrl(conversation.otherUser.profilePics[0], { width: 56, height: 56 })} alt={conversation.otherUser.name} loading="lazy" className="w-full h-full rounded-full object-cover border-2 border-zinc-900"/>
+                    <img src={getOptimizedUrl(conversation.otherUser.profile_pics[0], { width: 56, height: 56 })} alt={conversation.otherUser.name} loading="lazy" className="w-full h-full rounded-full object-cover border-2 border-primary-900"/>
                 </div>
-                {isOnline && <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-zinc-900"></div>}
+                {isOnline && <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-primary-900"></div>}
             </div>
             <div className="flex-1 overflow-hidden">
                 <h3 className="font-bold truncate">{conversation.otherUser.name}</h3>
-                <p className="text-sm text-zinc-400 truncate">
+                <p className="text-sm text-primary-400 truncate">
                     {lastMessage ? `${lastMessage.senderId === currentUserId ? 'You: ' : ''}${lastMessage.text}` : "Say hello!"}
                 </p>
             </div>
             <div className="flex flex-col items-end gap-1 self-start mt-1">
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-primary-500">
                     {lastMessage ? formatMessageTime(lastMessage.created_at) : ''}
                 </span>
                 {conversation.unread_count > 0 && (
@@ -179,7 +179,7 @@ const ChatListScreen: React.FC<{ onConversationSelect: (conversation: Conversati
         ) : (
           <div className="mt-8">
             <EmptyState
-                icon={<MessageSquare className="w-16 h-16 text-zinc-600" />}
+                icon={<MessageSquare className="w-16 h-16 text-primary-600" />}
                 title="No Chats Yet"
                 message="When you match with someone, your conversation will appear here. Time to get swiping!"
             />

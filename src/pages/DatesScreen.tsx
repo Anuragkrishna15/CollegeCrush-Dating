@@ -1,17 +1,17 @@
 
 import * as React from 'react';
-import { fetchMyDates, acceptProposal, updateUserLocation, fetchNearbyProposals, cancelMyProposal, fetchMyProposals } from '../../services/api.ts';
-import { BlindDate, MembershipType, Screen, MyBlindDateProposal, BlindDateProposal } from '../../types/types.ts';
-import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
-import { useUser } from '../../hooks/useUser.ts';
-import { useNotification } from '../../hooks/useNotification.ts';
-import LoadingSpinner from '../LoadingSpinner.tsx';
-import ScrollToTopButton from '../common/ScrollToTopButton.tsx';
-import EmptyState from '../common/EmptyState.tsx';
+import { fetchMyDates, acceptProposal, updateUserLocation, fetchNearbyProposals, cancelMyProposal, fetchMyProposals } from '../services/api.ts';
+import { BlindDate, MembershipType, Screen, MyBlindDateProposal, BlindDateProposal } from '../types/types.ts';
+import { PREMIUM_GRADIENT } from '../constants/constants.ts';
+import { useUser } from '../hooks/useUser.ts';
+import { useNotification } from '../hooks/useNotification.ts';
+import LoadingSpinner from '../components/LoadingSpinner.tsx';
+import ScrollToTopButton from '../components/common/ScrollToTopButton.tsx';
+import EmptyState from '../components/common/EmptyState.tsx';
 import { CalendarX2, Clock, MapPin, Lock, CheckCircle, Hourglass, Inbox, Compass, Trash2, Ticket } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getOptimizedUrl } from '../../utils/date.ts';
-import BlurredProfileCard from '../common/BlurredProfileCard.tsx';
+import { getOptimizedUrl } from '../utils/date.ts';
+import BlurredProfileCard from '../components/common/BlurredProfileCard.tsx';
 
 // Fix for framer-motion type errors
 const MotionButton: any = motion.button;
@@ -94,7 +94,7 @@ const MyDateCard: React.FC<{ date: BlindDate; onVibeCheck: (date: BlindDate) => 
     return (
         <div className="bg-zinc-950/70 backdrop-blur-lg border border-zinc-800 rounded-2xl flex shadow-lg">
             <div className="flex-shrink-0 w-28 flex flex-col items-center justify-center bg-zinc-900 rounded-l-2xl border-r-2 border-dashed border-zinc-700 p-2 text-center">
-                 <img src={getOptimizedUrl(date.otherUser.profilePics[0], { width: 64, height: 64 })} alt={date.otherUser.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700"/>
+                 <img src={getOptimizedUrl(date.otherUser.profile_pics[0], { width: 64, height: 64 })} alt={date.otherUser.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700"/>
                  <p className="font-bold text-sm mt-2 truncate">{date.otherUser.name}</p>
             </div>
             <div className="flex-1 p-4 flex flex-col justify-between">

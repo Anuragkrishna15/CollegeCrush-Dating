@@ -4,8 +4,8 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Heart, CalendarPlus, Briefcase, GraduationCap, Users, ShieldCheck, Mail, UserPlus, Coffee, Star as StarIcon } from 'lucide-react';
-import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
-import { useNotification } from '../../hooks/useNotification.ts';
+import { PREMIUM_GRADIENT } from '../constants/constants.ts';
+import { useNotification } from '../hooks/useNotification.ts';
 
 // Fix for framer-motion type errors
 const MotionHeader: any = motion.header;

@@ -1,9 +1,9 @@
 
 
 import * as React from 'react';
-import { supabase } from '../../services/supabase.ts';
-import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
-import LoadingSpinner from '../LoadingSpinner.tsx';
+import { supabase } from '../services/supabase.ts';
+import { PREMIUM_GRADIENT } from '../constants/constants.ts';
+import LoadingSpinner from '../components/LoadingSpinner.tsx';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 
@@ -11,19 +11,24 @@ import { ArrowLeft } from 'lucide-react';
 const MotionDiv: any = motion.div;
 const MotionButton: any = motion.button;
 
-const ALLOWED_DOMAINS = [
-    'vitdelhi.ac.in', 'iiitd.ac.in', 'amity.edu', 'jimsindia.org', 
-    'mait.ac.in', 'gtbit.org', 'bpitindia.com', 'tips.edu.in', 
-    'jamiahamdard.ac.in', 'lpu.co.in', 'mail.lpu.in', 'cumail.in', 
-    'chitkara.edu.in', 'davuniversity.org', 'ctgroup.in', 'rimt.ac.in', 
-    'acet.ac.in', 'gku.ac.in', 'deshbhagatuniversity.in', 'quest.edu.in', 
-    'mru.edu.in', 'ggn.amity.edu', 'bmu.edu.in', 'jgu.edu.in', 
-    'asu.apeejay.edu', 'srmuniversity.ac.in', 'dpgitm.ac.in', 
-    'starexuniversity.com', 'wctm.in', 'geetauniversity.edu.in', 
-    'sharda.ac.in', 'galgotiasuniversity.edu.in', 'bennett.edu.in', 
-    'glbitm.ac.in', 'kiet.edu', 'ims-ghaziabad.ac.in', 'iimtindia.net', 
+const envDomains = (import.meta as any).env.VITE_SUPPORTED_COLLEGE_DOMAINS;
+console.log('VITE_SUPPORTED_COLLEGE_DOMAINS:', envDomains);
+const processed = ((import.meta as any).env.VITE_SUPPORTED_COLLEGE_DOMAINS || '').split(',').map(d => d.trim()).filter(Boolean);
+console.log('Processed domains:', processed);
+const ALLOWED_DOMAINS = processed || [
+    'vitdelhi.ac.in', 'iiitd.ac.in', 'amity.edu', 'jimsindia.org',
+    'mait.ac.in', 'gtbit.org', 'bpitindia.com', 'tips.edu.in',
+    'jamiahamdard.ac.in', 'lpu.co.in', 'mail.lpu.in', 'cumail.in',
+    'chitkara.edu.in', 'davuniversity.org', 'ctgroup.in', 'rimt.ac.in',
+    'acet.ac.in', 'gku.ac.in', 'deshbhagatuniversity.in', 'quest.edu.in',
+    'mru.edu.in', 'ggn.amity.edu', 'bmu.edu.in', 'jgu.edu.in',
+    'asu.apeejay.edu', 'srmuniversity.ac.in', 'dpgitm.ac.in',
+    'starexuniversity.com', 'wctm.in', 'geetauniversity.edu.in',
+    'sharda.ac.in', 'galgotiasuniversity.edu.in', 'bennett.edu.in',
+    'glbitm.ac.in', 'kiet.edu', 'ims-ghaziabad.ac.in', 'iimtindia.net',
     'abes.ac.in', 'niu.edu.in', 'chitkarauniversity.edu.in',
 ];
+console.log('ALLOWED_DOMAINS final:', ALLOWED_DOMAINS);
 
 interface AuthScreenProps {
     onBackToLanding?: () => void;
@@ -42,6 +47,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBackToLanding }) => {
         setLoading(true);
 
         const domain = email.split('@')[1];
+        console.log('Email:', email);
+        console.log('Extracted domain:', domain);
+        console.log('ALLOWED_DOMAINS:', ALLOWED_DOMAINS);
+        console.log('Domain in ALLOWED_DOMAINS:', ALLOWED_DOMAINS.includes(domain));
         if (!domain || !ALLOWED_DOMAINS.includes(domain)) {
             setError('Your college is not yet supported. Please use a valid email from our partner colleges.');
             setLoading(false);

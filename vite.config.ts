@@ -1,4 +1,4 @@
-import path from 'path';
+import { resolve } from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
@@ -24,13 +24,13 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, './src'),
-          '@components': path.resolve(__dirname, './src/components'),
-          '@hooks': path.resolve(__dirname, './src/hooks'),
-          '@services': path.resolve(__dirname, './src/services'),
-          '@utils': path.resolve(__dirname, './src/utils'),
-          '@constants': path.resolve(__dirname, './src/constants'),
-          '@types': path.resolve(__dirname, './src/types')
+          '@': resolve(__dirname, './src'),
+          '@components': resolve(__dirname, './src/components'),
+          '@hooks': resolve(__dirname, './src/hooks'),
+          '@services': resolve(__dirname, './src/services'),
+          '@utils': resolve(__dirname, './src/utils'),
+          '@constants': resolve(__dirname, './src/constants'),
+          '@types': resolve(__dirname, './src/types')
         }
       }
     };

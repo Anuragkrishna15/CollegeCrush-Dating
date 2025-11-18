@@ -51,10 +51,10 @@ const MatchPopup: React.FC<MatchPopupProps> = ({ matchedProfile, onClose, onGoTo
         <div className="flex justify-center items-center my-8 space-x-[-2rem]">
           <MotionImg 
             initial={{x: 50, rotate: 15}} animate={{x:0, rotate: -10}} transition={{type: 'spring', delay: 0.2}}
-            src={getOptimizedUrl(currentUser.profilePics[0], { width: 128, height: 128 })} alt="You" loading="lazy" className="w-32 h-32 rounded-full object-cover border-4 border-pink-500 shadow-md" />
+            src={getOptimizedUrl(currentUser.profile_pics[0], { width: 128, height: 128 })} alt="You" loading="lazy" className="w-32 h-32 rounded-full object-cover border-4 border-pink-500 shadow-md" />
           <MotionImg 
             initial={{x: -50, rotate: -15}} animate={{x:0, rotate: 10}} transition={{type: 'spring', delay: 0.2}}
-            src={getOptimizedUrl(matchedProfile.profilePics[0], { width: 128, height: 128 })} alt={matchedProfile.name} loading="lazy" className="w-32 h-32 rounded-full object-cover border-4 border-purple-500 shadow-md" />
+            src={getOptimizedUrl(matchedProfile.profile_pics[0], { width: 128, height: 128 })} alt={matchedProfile.name} loading="lazy" className="w-32 h-32 rounded-full object-cover border-4 border-purple-500 shadow-md" />
         </div>
         <MotionButton 
             whileHover={{ scale: 1.05 }}

@@ -7,6 +7,7 @@ export class MessagingService {
     private retryQueue: Map<string, { message: any, retries: number }> = new Map();
     private maxRetries = 3;
     private retryDelay = 1000; // Start with 1 second
+    private retryIntervalId: NodeJS.Timeout | null = null;
 
     private constructor() {
         // Start retry processor
@@ -108,7 +109,7 @@ export class MessagingService {
     }
 
     private async processRetryQueue() {
-        setInterval(async () => {
+        this.retryIntervalId = setInterval(async () => {
             if (this.retryQueue.size === 0) return;
 
             const isOnline = await this.checkConnection();
@@ -124,10 +125,10 @@ export class MessagingService {
                 try {
                     const { conversationId, text, senderId } = item.message;
                     await this.attemptSendMessage(conversationId, text, senderId);
-                    
+
                     console.log(`Message ${tempId} sent successfully after ${item.retries} retries`);
                     this.retryQueue.delete(tempId);
-                    
+
                     // Notify UI of successful send (you can emit an event here)
                     this.notifyMessageSent(tempId);
                 } catch (error) {
@@ -153,6 +154,10 @@ export class MessagingService {
     // Clear retry queue (useful for logout)
     clearRetryQueue() {
         this.retryQueue.clear();
+        if (this.retryIntervalId) {
+            clearInterval(this.retryIntervalId);
+            this.retryIntervalId = null;
+        }
     }
 }
 

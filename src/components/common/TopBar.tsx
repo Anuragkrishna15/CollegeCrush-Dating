@@ -1,10 +1,11 @@
 
 import * as React from 'react';
 import { Screen } from '../../types/types.ts';
-import { Bell, ArrowLeft, Sun, Moon, Monitor, LogOut } from 'lucide-react';
+import { Bell, ArrowLeft, Sun, Moon, Monitor, LogOut, Download } from 'lucide-react';
 import { PREMIUM_GRADIENT } from '../../constants/constants.ts';
 import { useTheme } from '../../hooks/useTheme.ts';
 import { useUser } from '../../hooks/useUser.ts';
+import { usePWAInstall } from '../../hooks/usePWAInstall.ts';
 
 interface TopBarProps {
     activeScreen: Screen;
@@ -29,6 +30,7 @@ const TopBar: React.FC<TopBarProps> = ({ activeScreen, unreadCount, setActiveScr
     const config = screenConfig[activeScreen];
     const { theme, toggleTheme } = useTheme();
     const { logout } = useUser();
+    const { isInstallable, installPWA } = usePWAInstall();
     if (!config) return null;
 
     const handleBack = () => {
@@ -49,7 +51,7 @@ const TopBar: React.FC<TopBarProps> = ({ activeScreen, unreadCount, setActiveScr
     const isSwipeScreen = activeScreen === Screen.Swipe;
 
     return (
-        <div className="sticky top-0 left-0 right-0 z-30 bg-zinc-950/70 backdrop-blur-lg p-4 flex justify-between items-center border-b border-zinc-800/50 h-20">
+        <div className="sticky top-0 left-0 right-0 z-30 bg-zinc-950/70 backdrop-blur-lg p-4 safe-top flex justify-between items-center border-b border-zinc-800/50 h-20">
             <div className="flex items-center gap-2">
                 {config.showBackTo && (
                      <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-zinc-800">
@@ -62,6 +64,15 @@ const TopBar: React.FC<TopBarProps> = ({ activeScreen, unreadCount, setActiveScr
             </div>
 
             <div className="flex items-center gap-2">
+                {isInstallable && (
+                    <button
+                        onClick={installPWA}
+                        className="p-2 rounded-full hover:bg-zinc-800 transition-colors text-pink-500 hover:text-pink-400"
+                        aria-label="Install CollegeCrush as an app"
+                    >
+                        <Download size={20} />
+                    </button>
+                )}
                 <button
                     onClick={toggleTheme}
                     className="p-2 rounded-full hover:bg-zinc-800 transition-colors"

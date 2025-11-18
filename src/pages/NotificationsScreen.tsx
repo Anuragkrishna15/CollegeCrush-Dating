@@ -1,13 +1,13 @@
 
 import * as React from 'react';
-import { fetchNotifications } from '../../services/api.ts';
-import { AppNotification, NotificationType } from '../../types/types.ts';
-import { useUser } from '../../hooks/useUser.ts';
-import { useNotification as useToast } from '../../hooks/useNotification.ts';
-import LoadingSpinner from '../LoadingSpinner.tsx';
-import EmptyState from '../common/EmptyState.tsx';
+import { fetchNotifications } from '../services/api.ts';
+import { AppNotification, NotificationType } from '../types/types.ts';
+import { useUser } from '../hooks/useUser.ts';
+import { useNotification as useToast } from '../hooks/useNotification.ts';
+import LoadingSpinner from '../components/LoadingSpinner.tsx';
+import EmptyState from '../components/common/EmptyState.tsx';
 import { Bell, Heart, MessageSquare, CalendarCheck, CheckCircle } from 'lucide-react';
-import { formatNotificationDate } from '../../utils/date.ts';
+import { formatNotificationDate } from '../utils/date.ts';
 
 interface NotificationsScreenProps {
   onMarkAllAsRead: () => void;

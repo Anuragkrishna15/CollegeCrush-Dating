@@ -1,16 +1,18 @@
 
 import * as React from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
-import { fetchProfiles, recordSwipe, fetchAds } from '../../services/api.ts';
-import { Profile, MembershipType, Screen, Ad, Swipeable } from '../../types/types.ts';
-import ProfileCard from '../ProfileCard.tsx';
-import AdCard from '../AdCard.tsx';
-import MatchPopup from '../MatchPopup.tsx';
-import { useUser } from '../../hooks/useUser.ts';
-import EmptyState from '../common/EmptyState.tsx';
-import { useNotification } from '../../hooks/useNotification.ts';
+import { fetchProfiles, recordSwipe, fetchAds } from '../services/api.ts';
+import { Profile, MembershipType, Screen, Ad, Swipeable } from '../types/types.ts';
+import { matchingService } from '../services/matching.ts';
+import { useMatchingPreferences } from '../hooks/useMatchingPreferences.ts';
+import ProfileCard from '../components/ProfileCard.tsx';
+import AdCard from '../components/AdCard.tsx';
+import MatchPopup from '../components/MatchPopup.tsx';
+import { useUser } from '../hooks/useUser.ts';
+import EmptyState from '../components/common/EmptyState.tsx';
+import { useNotification } from '../hooks/useNotification.ts';
 import { X, Heart, Users, AlertTriangle, RefreshCw, Filter } from 'lucide-react';
-import ProfileCardSkeleton from '../skeletons/ProfileCardSkeleton.tsx';
+import ProfileCardSkeleton from '../components/skeletons/ProfileCardSkeleton.tsx';
 
 // Fix for framer-motion type errors
 const MotionButton: any = motion.button;
@@ -78,9 +80,9 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
     const [swipesToday, setSwipesToday] = React.useState(getTodaysSwipeData().count);
     const { user } = useUser();
     const { showNotification } = useNotification();
+    const { preferences, variant } = useMatchingPreferences(user?.id);
     const [swipeDirection, setSwipeDirection] = React.useState<'left' | 'right' | null>(null);
     const [isSwiping, setIsSwiping] = React.useState(false);
-    const [minAge, setMinAge] = React.useState(18);
 
     // For drag gestures
     const x = useMotionValue(0);
@@ -90,7 +92,11 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
 
 
     const swipeDeck = React.useMemo((): Swipeable[] => {
-        const filteredProfiles = profiles.filter(profile => profile.age >= minAge);
+        const filteredProfiles = profiles.filter(profile =>
+            profile.age >= preferences.ageRange.min &&
+            profile.age <= preferences.ageRange.max &&
+            preferences.preferredGenders.includes(profile.gender)
+        );
         if (!user || user.membership !== MembershipType.Free || ads.length === 0 || filteredProfiles.length === 0) {
             return filteredProfiles;
         }
@@ -105,7 +111,7 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
             }
         }
         return interleaved;
-    }, [profiles, ads, user, minAge]);
+    }, [profiles, ads, user, preferences]);
 
     const loadData = React.useCallback(() => {
         if (user) {
@@ -134,10 +140,18 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
                 user.membership === MembershipType.Free ? fetchAds() : Promise.resolve([] as Ad[])
             ])
             .then(([fetchedProfiles, fetchedAds]) => {
-                setProfiles(fetchedProfiles);
+                // Apply advanced matching algorithm sorting
+                const sortedProfiles = matchingService.sortProfilesByCompatibility(
+                    user,
+                    fetchedProfiles,
+                    preferences,
+                    variant
+                );
+
+                setProfiles(sortedProfiles);
                 setAds(fetchedAds);
-                // Cache the profiles
-                localStorage.setItem('swipeProfiles', JSON.stringify(fetchedProfiles));
+                // Cache the sorted profiles
+                localStorage.setItem('swipeProfiles', JSON.stringify(sortedProfiles));
             })
             .catch(error => {
                 setError("Could not load cards. Please check your connection and try again.");
@@ -192,7 +206,16 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
                         setShowMatchPopup(true);
                         showNotification(`You matched with ${swipedUser.name}!`, 'success');
                     }
+                    // Update collaborative filtering data for likes
+                    matchingService.updateCollaborativeData(user.id, swipedUser.id, true);
+                } else {
+                    // Update collaborative filtering data for passes
+                    matchingService.updateCollaborativeData(user.id, swipedUser.id, false);
                 }
+
+                // Update diversity tracker
+                matchingService.updateDiversityTracker(user.id, swipedUser);
+
                 const newSwipeCount = swipesToday + 1;
                 setSwipesToday(newSwipeCount);
                 if (user.membership === MembershipType.Free) {
@@ -298,7 +321,7 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
                            >
                              <div className="relative w-full h-full">
                                {'link' in currentItem ? (
-                                 <AdCard ad={currentItem} />
+                                 <AdCard ad={currentItem as Ad} />
                                ) : (
                                 <>
                                  <ProfileCard profile={currentItem as Profile} onClick={() => onProfileClick(currentItem as Profile)} />
@@ -347,10 +370,9 @@ function SwipeScreen({ onProfileClick, onGoToChat, setActiveScreen }: SwipeScree
                             Swipes left today: <span className="font-bold text-black dark:text-white">{swipesLeft > 0 ? swipesLeft : 0}</span>
                         </div>
                     )}
-                    <button onClick={() => setMinAge(minAge === 18 ? 21 : 18)} className="flex items-center gap-1 px-3 py-1 bg-zinc-800 rounded-lg text-sm hover:bg-zinc-700 transition-colors">
-                        <Filter size={14} />
-                        Age {minAge}+
-                    </button>
+                    <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                        Age: {preferences.ageRange.min}-{preferences.ageRange.max}
+                    </div>
                 </div>
 
                 {currentItem && !isCurrentItemAd && (

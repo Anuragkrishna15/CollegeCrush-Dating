@@ -10,7 +10,7 @@ const BlurredProfileCard: React.FC<BlurredProfileCardProps> = ({ profile }) => {
     return (
         <div className="relative aspect-square rounded-2xl overflow-hidden">
             <img
-                src={getOptimizedUrl(profile.profilePics[0], { width: 250, height: 250 })}
+                src={getOptimizedUrl(profile.profile_pics[0], { width: 250, height: 250 })}
                 alt={profile.name}
                 loading="lazy"
                 className="w-full h-full object-cover filter blur-sm"
